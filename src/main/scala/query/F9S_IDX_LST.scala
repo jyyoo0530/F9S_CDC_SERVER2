@@ -6,6 +6,7 @@ import org.apache.spark.sql.types._
 
 case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var pathJsonSave: String){
   def idx_lst(): Unit ={
+    println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
     val F9S_MI_SUM = spark.read.parquet(pathParquetSave+"/F9S_MI_SUM")
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
@@ -34,7 +35,10 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
       .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
       .agg(collect_list(struct("intervalSeq", "interval")).as("intervalItem"))
 
-    F9S_IDX_LST.write.mode("append").parquet(pathParquetSave+"/F9S_IDX_LST")
-    F9S_IDX_LST.write.mode("append").json(pathJsonSave+"/F9S_IDX_LST")
+
+    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave+"/F9S_IDX_LST")
+//    F9S_IDX_LST.write.mode("append").parquet(pathParquetSave+"/F9S_IDX_LST")
+    F9S_IDX_LST.printSchema
+    println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 }

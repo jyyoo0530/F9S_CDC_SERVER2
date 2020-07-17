@@ -7,6 +7,7 @@ import org.apache.spark.sql.expressions._
 case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
                            var pathParquetSave: String, var pathJsonSave: String){
   def mw_wkdetail(): Unit ={
+    println("////////////////////////////////MW WKDETAIL: JOB STARTED////////////////////////////////////////")
     lazy val aggData = spark.read.parquet(pathParquetSave+"/aggData")
 
 
@@ -53,22 +54,14 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
 
     lazy val tgData = F9S_MW_WKDETAIL.withColumn("writeIdx", concat(col("marketTypeCode"), col("baseYearWeek"), col("rdTermCode"), col("containerTypeCode"), col("paymentTermCode"), col("polCode"), col("podCode"), col("interval"))).withColumn("rte_idx", concat(col("polCode"), col("podCode")))
 
-    for (i <- idx.indices){
-      tgData.filter(
-        col("marketTypeCode") === marketTypeCode(i) &&
-          col("paymentTermCode") === paymentTermCode(i) &&
-          col("rdTermCode") === rdTermCode(i) &&
-          col("containerTypeCode") === containerTypeCode(i) &&
-          col("rte_idx") === rte_idx(i) &&
-          col("baseYearWeek") === baseYearWeek(i) &&
-          col("interval") === interval(i)
-      )
-        .drop("rte_idx","writeIdx")
-        .write.mode("append").json(pathJsonSave+"/F9S_MW_WKDETAIL"+"/"+marketTypeCode(i)+ "/" + baseYearWeek(i)+"/"+paymentTermCode(i)+"/"+rdTermCode(i)+"/"+containerTypeCode(i)+"/"+rte_idx(i) +"/"+interval(i))
-    }
 
-    F9S_MW_WKDETAIL.write.mode("append").parquet(pathParquetSave+"/F9S_MW_WKDETAIL")
+      F9S_MW_WKDETAIL.repartition(1).drop("rte_idx","writeIdx")
+        .write.mode("append").json(pathJsonSave+"/F9S_MW_WKDETAIL")
 
+//    F9S_MW_WKDETAIL.write.mode("append").parquet(pathParquetSave+"/F9S_MW_WKDETAIL")
+
+    F9S_MW_WKDETAIL.printSchema
+    println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 
 

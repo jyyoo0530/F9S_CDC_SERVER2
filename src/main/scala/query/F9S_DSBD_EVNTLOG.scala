@@ -6,6 +6,7 @@ import org.apache.spark.sql.functions._
 case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
                             var pathParquetSave: String, var pathJsonSave: String, var currentWk: String){
   def dsbd_evntlog(): Unit ={
+    println("////////////////////////////////DSBD EVENTLOG: JOB STARTED////////////////////////////////////////")
     lazy val FTR_OFER = spark.read.parquet(pathSourceFrom+"/FTR_OFER")
     lazy val FTR_DEAL_RSLT = spark.read.parquet(pathSourceFrom+"/FTR_DEAL_RSLT")
     lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom+"/FTR_DEAL")
@@ -81,17 +82,9 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
     val F9S_DSBD_EVNTLOG =  event01.union(event02).union(event03).union(event04).union(event05).groupBy("offerNumber", "offerTypeCode", "allYn").agg(collect_list(struct("eventCode", "eventName", "lastEventTimestamp", "lastEventHost", "eventLog")).as("eventCell"))
 
 
-    lazy val mwidx = F9S_DSBD_EVNTLOG.select("offerNumber")
-    lazy val idx = mwidx.collect()
-    lazy val offerNumber = mwidx.select("offerNumber").collect().map(_(0).toString)
-    lazy val tgData = F9S_DSBD_EVNTLOG
-
-    for (i <- idx.indices){
-      tgData.filter(
-        col("offerNumber") === offerNumber(i)
-      )
-        .write.mode("append").json(pathJsonSave+"/F9S_DSBD_EVNTLOG/"+offerNumber(i))
-    }
-    F9S_DSBD_EVNTLOG.write.mode("append").parquet(pathParquetSave+"/F9S_DSBD_EVNTLOG")
+    F9S_DSBD_EVNTLOG.repartition(1).write.mode("append").json(pathJsonSave+"/F9S_DSBD_EVNTLOG")
+//    F9S_DSBD_EVNTLOG.write.mode("append").parquet(pathParquetSave+"/F9S_DSBD_EVNTLOG")
+    F9S_DSBD_EVNTLOG.printSchema
+    println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 }

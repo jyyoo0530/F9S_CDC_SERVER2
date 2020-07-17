@@ -24,20 +24,8 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
 
     val F9S_DSBD_WKDETAIL = agged1.join(agged2, Seq("offerNumber", "baseYearWeek", "offerChangeSeq"), "left")
 
-    lazy val mwidx = F9S_DSBD_WKDETAIL.select("offerNumber", "baseYearWeek")
-    lazy val idx = mwidx.collect()
-    lazy val offerNumber = mwidx.select("offerNumber").collect().map(_ (0).toString)
-    lazy val baseYearWeek = mwidx.select("baseYearWeek").collect().map(_ (0).toString)
+    F9S_DSBD_WKDETAIL.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_DSBD_WKDETAIL")
 
-    lazy val tgData = F9S_DSBD_WKDETAIL
-
-    for (i <- idx.indices) {
-      tgData.filter(
-        col("offerNumber") === offerNumber(i) &&
-          col("baseYearWeek") === baseYearWeek(i)
-      )
-        .write.mode("append").json(pathJsonSave + "/F9S_DSBD_WKDETAIL" + "/" + offerNumber(i) + "/" + baseYearWeek(i))
-    }
-    F9S_DSBD_WKDETAIL.write.mode("append").parquet(pathParquetSave + "/F9S_DSBD_WKDETAIL")
+//    F9S_DSBD_WKDETAIL.write.mode("append").parquet(pathParquetSave + "/F9S_DSBD_WKDETAIL")
   }
 }

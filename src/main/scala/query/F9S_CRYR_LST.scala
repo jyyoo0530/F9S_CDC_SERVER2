@@ -16,8 +16,8 @@ case class F9S_CRYR_LST(var spark: SparkSession, var pathSourceFrom: String,
       .join(MDM_CRYR, Seq("CRYR_CD"), "left")
       .select("CRYR_CD","CRYR_NM").withColumn("companyCodes", col("CRYR_CD")).withColumn("companyName",col("CRYR_NM")).drop("CRYR_CD", "CRYR_NM")
 
-    F9S_CRYR_LST.write.mode("overwrite").parquet(pathParquetSave+"/F9S_CRYR_LST")
-    F9S_CRYR_LST.write.mode("overwrite").json(pathJsonSave+"/F9S_CRYR_LST")
+    F9S_CRYR_LST.repartition(1).write.mode("overwrite").parquet(pathParquetSave+"/F9S_CRYR_LST")
+//    F9S_CRYR_LST.write.mode("overwrite").json(pathJsonSave+"/F9S_CRYR_LST")
 
   }
 }

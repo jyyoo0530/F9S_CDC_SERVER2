@@ -6,6 +6,7 @@ import org.apache.spark.sql.functions._
 case class F9S_DSBD_RTELIST(var spark: SparkSession, var pathSourceFrom: String,
                             var pathParquetSave: String, var pathJsonSave: String) {
   def dsbd_rtelist(): Unit = {
+    println("////////////////////////////////DSBD RTELIST: JOB STARTED////////////////////////////////////////")
     lazy val FTR_OFER = spark.read.parquet(pathSourceFrom + "/FTR_OFER")
     lazy val FTR_OFER_RTE = spark.read.parquet(pathSourceFrom + "/FTR_OFER_RTE")
     lazy val MDM_PORT = spark.read.parquet(pathSourceFrom + "/MDM_PORT")
@@ -47,20 +48,12 @@ case class F9S_DSBD_RTELIST(var spark: SparkSession, var pathSourceFrom: String,
     lazy val agged1 = srcOfer.join(srcRte, Seq("offerNumber"), "left").drop("offerNumber").distinct
     lazy val F9S_DSBD_RTELIST = agged1.groupBy("userId", "offerTypeCode").agg(collect_list(struct("polCode", "podCode", "polName", "podName")).as("rteList"))
 
-    lazy val mwidx = F9S_DSBD_RTELIST.select("userId", "offerTypeCode")
-    lazy val idx = mwidx.collect()
-    lazy val userId = mwidx.select("userId").collect().map(_ (0).toString)
-    lazy val offerTypeCode = mwidx.select("offerTypeCode").collect().map(_ (0).toString)
+    
+    F9S_DSBD_RTELIST.repartition(1).write.mode("overwrite").json(pathJsonSave + "/F9S_DSBD_RTELIST")
 
-    lazy val tgData = F9S_DSBD_RTELIST
+//    F9S_DSBD_RTELIST.write.mode("overwrite").parquet(pathParquetSave + "/F9S_DSBD_RTELIST")
 
-    for (i <- idx.indices) {
-      tgData.filter(
-        col("userId") === userId(i) && col("offerTypeCode") === offerTypeCode(i)
-      )
-        .write.mode("overwrite").json(pathJsonSave + "/F9S_DSBD_RTELIST" + "/" + userId(i) + "/" + offerTypeCode(i))
-    }
-
-    F9S_DSBD_RTELIST.write.mode("overwrite").parquet(pathParquetSave + "/F9S_DSBD_RTELIST")
+    F9S_DSBD_RTELIST.printSchema
+    println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 }

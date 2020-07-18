@@ -139,7 +139,7 @@ object main {
 //    F9S_DSBD_WKLIST(spark, a, b, c).dsbd_wklist()
 //    F9S_DSBD_SUM(spark, a, b, c, currentWk).dsbd_sum()
 //    F9S_DSBD_WKDETAIL(spark, a, b, c).dsbd_wkdetail()
-    F9S_DSBD_EVNTLOG(spark, a, b, c, currentWk).dsbd_evntlog()
+//    F9S_DSBD_EVNTLOG(spark, a, b, c, currentWk).dsbd_evntlog()
 //    F9S_STATS_RAW(spark, a, b, c).stats_raw()
 //    F9S_MW_SUM(spark, a, b, c, currentWk).mw_sum()
 //    F9S_MW_HST(spark, a, b, c).mw_hst()

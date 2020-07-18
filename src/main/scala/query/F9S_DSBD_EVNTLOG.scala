@@ -54,23 +54,24 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
       .withColumn("referenceEventNumberChangeSeq", col("offerChangeSeq"))
       .withColumn("tradeClosing", col("timestamp"))
     lazy val event01 = src01
-      .withColumn("lastEventTimestamp",lit(max("eventTimestamp").over(Window.partitionBy("offerNumber"))))
-      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName","lastEventTimestamp", "lastEventHost")
+      .withColumn("lastEventTimestamp", lit(max("eventTimestamp").over(Window.partitionBy("offerNumber"))))
+      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost")
       .agg(
         collect_set(struct("eventTimestamp",
-        "referenceEventNumber",
-        "referenceEventNumberChangeSeq",
-        "baseYearWeek",
-        "dealPrice",
-        "dealQty",
-        "dealAmt",
-        "offerPrice",
-        "offerQty",
-        "offerAmt",
-        "leftPrice",
-        "leftQty",
-        "leftAmt",
-        "tradeClosing")).as("eventLog")).drop("offerChangeSeq", "timestamp")
+          "referenceEventNumber",
+          "referenceEventNumberChangeSeq",
+          "baseYearWeek",
+          "dealPrice",
+          "dealQty",
+          "dealAmt",
+          "offerPrice",
+          "offerQty",
+          "offerAmt",
+          "leftPrice",
+          "leftQty",
+          "leftAmt",
+          "tradeClosing")).as("eventLog")).drop("offerChangeSeq", "timestamp")
+    event01.printSchema
 
     //event02
     lazy val src02 = FTR_OFER_LINE_ITEM.filter(col("OFER_CHNG_SEQ") > 0)
@@ -102,23 +103,25 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
       .withColumn("referenceEventNumberChangeSeq", col("DEAL_CHNG_SEQ"))
       .withColumn("tradeClosing", col("timestamp"))
     lazy val event02 = src02
-      .withColumn("lastEventTimestamp",lit(max("eventTimestamp").over(Window.partitionBy("offerNumber","offerChangeSeq"))))
-      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName","lastEventTimestamp", "lastEventHost")
+      .withColumn("lastEventTimestamp", lit(max("eventTimestamp").over(Window.partitionBy("offerNumber", "offerChangeSeq"))))
+      .filter(col("referenceEventNumber") isNotNull)
+      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost")
       .agg(
         collect_set(struct("eventTimestamp",
-        "referenceEventNumber",
-        "referenceEventNumberChangeSeq",
-        "baseYearWeek",
-        "dealPrice",
-        "dealQty",
-        "dealAmt",
-        "offerPrice",
-        "offerQty",
-        "offerAmt",
-        "leftPrice",
-        "leftQty",
-        "leftAmt",
-        "tradeClosing")).as("eventLog")).drop("offerChangeSeq", "DEAL_DT", "DEAL_NR", "DEAL_CHNG_SEQ","timestamp")
+          "referenceEventNumber",
+          "referenceEventNumberChangeSeq",
+          "baseYearWeek",
+          "dealPrice",
+          "dealQty",
+          "dealAmt",
+          "offerPrice",
+          "offerQty",
+          "offerAmt",
+          "leftPrice",
+          "leftQty",
+          "leftAmt",
+          "tradeClosing")).as("eventLog")).drop("offerChangeSeq", "DEAL_DT", "DEAL_NR", "DEAL_CHNG_SEQ", "timestamp")
+    event02.printSchema
 
     //event03
     lazy val src03 = FTR_OFER_LINE_ITEM.filter(col("BSE_YW") < currentWk)
@@ -147,24 +150,27 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
       .withColumn("referenceEventNumberChangeSeq", col("offerChangeSeq"))
       .withColumn("tradeClosing", col("timestamp"))
     lazy val event03 = src03
-      .withColumn("lastEventTimestamp",lit(max("eventTimestamp").over(Window.partitionBy("offerNumber","baseYearWeek"))))
-      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName","lastEventTimestamp", "lastEventHost")
+      .withColumn("lastEventTimestamp", lit(max("eventTimestamp").over(Window.partitionBy("offerNumber"))))
+      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost")
       .agg(
+        max("offerChangeSeq").over(Window.partitionBy("offerNumber")).as("maxOfferChangeSeq"),
         collect_set(struct("eventTimestamp",
-        "referenceEventNumber",
-        "referenceEventNumberChangeSeq",
-        "baseYearWeek",
-        "dealPrice",
-        "dealQty",
-        "dealAmt",
-        "offerPrice",
-        "offerQty",
-        "offerAmt",
-        "leftPrice",
-        "leftQty",
-        "leftAmt",
-        "tradeClosing")).as("eventLog")).drop("offerChangeSeq", "timestamp")
-
+          "referenceEventNumber",
+          "referenceEventNumberChangeSeq",
+          "baseYearWeek",
+          "dealPrice",
+          "dealQty",
+          "dealAmt",
+          "offerPrice",
+          "offerQty",
+          "offerAmt",
+          "leftPrice",
+          "leftQty",
+          "leftAmt",
+          "tradeClosing")).as("eventLog"))
+      .filter(col("offerChangeSeq") === col("maxOfferChangeSeq"))
+      .drop("offerChangeSeq", "maxOfferChangeSeq", "timestamp")
+    event03.printSchema
 
     //event04
     lazy val src04 = FTR_OFER_LINE_ITEM
@@ -194,24 +200,25 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
       .withColumn("referenceEventNumberChangeSeq", col("offerChangeSeq"))
       .withColumn("tradeClosing", col("timestamp"))
     lazy val event04 = src04
-      .withColumn("lastEventTimestamp",lit(max("eventTimestamp").over(Window.partitionBy("offerNumber"))))
-      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName","lastEventTimestamp", "lastEventHost")
+      .withColumn("lastEventTimestamp", lit(max("eventTimestamp").over(Window.partitionBy("offerNumber"))))
+      .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost")
       .agg(sum("leftQty").as("allDealt"),
         collect_set(struct("eventTimestamp",
-        "referenceEventNumber",
-        "referenceEventNumberChangeSeq",
-        "baseYearWeek",
-        "dealPrice",
-        "dealQty",
-        "dealAmt",
-        "offerPrice",
-        "offerQty",
-        "offerAmt",
-        "leftPrice",
-        "leftQty",
-        "leftAmt",
-        "tradeClosing")).as("eventLog"))
-      .filter(col("allDealt") === 0).drop("offerChangeSeq", "allDealt", "DEAL_DT","timestamp")
+          "referenceEventNumber",
+          "referenceEventNumberChangeSeq",
+          "baseYearWeek",
+          "dealPrice",
+          "dealQty",
+          "dealAmt",
+          "offerPrice",
+          "offerQty",
+          "offerAmt",
+          "leftPrice",
+          "leftQty",
+          "leftAmt",
+          "tradeClosing")).as("eventLog"))
+      .filter(col("allDealt") === 0).drop("offerChangeSeq", "allDealt", "DEAL_DT", "timestamp")
+    event04.printSchema
 
     //event05
     lazy val src05 = FTR_OFER_LINE_ITEM
@@ -241,7 +248,7 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
       .withColumn("referenceEventNumberChangeSeq", col("offerChangeSeq"))
       .withColumn("tradeClosing", when(col("DEAL_DT") > col("timestamp"), col("DEAL_DT")).otherwise(col("timestamp"))).distinct
     lazy val event05 = src05
-      .withColumn("lastEventTimestamp",lit(max("eventTimestamp").over(Window.partitionBy("offerNumber"))))
+      .withColumn("lastEventTimestamp", lit(max("eventTimestamp").over(Window.partitionBy("offerNumber"))))
       .groupBy("offerNumber", "offerTypeCode", "allYn", "offerChangeSeq", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost")
       .agg(sum("leftQty").as("allDealt"),
         max("baseYearWeek").as("maxWeek"),
@@ -269,30 +276,31 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
           or (col("allYn") === 1 and col("minWeek") > currentWk and col("maxWeek") < currentWk)
           or (col("maxWeek") < currentWk)
       )
-      .drop("offerChangeSeq", "allDealt", "minWeek", "maxWeek", "DEAL_DT","timestamp","maxOfferChangeSeq")
+      .drop("offerChangeSeq", "allDealt", "minWeek", "maxWeek", "DEAL_DT", "timestamp", "maxOfferChangeSeq")
+    event05.printSchema
 
 
-//    val F9S_DSBD_EVNTLOG = event01.union(event02).union(event03).union(event04).union(event05)
-//      .groupBy("offerNumber", "allYn", "offerTypeCode").agg(collect_set(struct("eventCode",
-//      "eventName",
-//      "lastEventTimestamp",
-//      "lastEventHost",
-//      "eventLog")).as("eventCell"))
-    val F9S_DSBD_EVNTLOG = event01
+    val F9S_DSBD_EVNTLOG = event01.union(event02).union(event03).union(event04).union(event05)
       .groupBy("offerNumber", "allYn", "offerTypeCode").agg(collect_set(struct("eventCode",
       "eventName",
       "lastEventTimestamp",
       "lastEventHost",
       "eventLog")).as("eventCell"))
+    //    val F9S_DSBD_EVNTLOG = event03
+    //      .groupBy("offerNumber", "allYn", "offerTypeCode").agg(collect_set(struct("eventCode",
+    //      "eventName",
+    //      "lastEventTimestamp",
+    //      "lastEventHost",
+    //      "eventLog")).as("eventCell"))
 
     F9S_DSBD_EVNTLOG.printSchema
 
-    F9S_DSBD_EVNTLOG.repartition(4).write.mode("append").json(pathJsonSave+"/F9S_DSBD_EVNTLOG")
+    //    F9S_DSBD_EVNTLOG.write.mode("append").json(pathJsonSave+"/F9S_DSBD_EVNTLOG")
     //    F9S_DSBD_EVNTLOG.write.mode("append").parquet(pathParquetSave+"/F9S_DSBD_EVNTLOG")
 
-    //    MongoSpark.save(F9S_DSBD_EVNTLOG.write
-    //      .option("uri", "mongodb://data.freight9.com/f9s")
-    //      .option("collection", "F9S_DSBD_EVNTLOG").mode("overwrite"))
+    MongoSpark.save(F9S_DSBD_EVNTLOG.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_DSBD_EVNTLOG").mode("overwrite"))
 
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

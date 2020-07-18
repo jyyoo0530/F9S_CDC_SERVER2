@@ -1,5 +1,6 @@
 package query
 
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
@@ -61,7 +62,9 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_MW_HST.write.mode("append").parquet(pathParquetSave+"/F9S_MW_HST")
     aggData.write.mode("append").parquet(pathParquetSave + "/aggData")
-
+    MongoSpark.save(F9S_MW_HST.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_MW_HST").mode("overwrite"))
     F9S_MW_HST.printSchema
     aggData.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

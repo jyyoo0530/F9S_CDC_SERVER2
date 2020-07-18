@@ -1,5 +1,6 @@
 package query
 
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
@@ -24,8 +25,11 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
 
     val F9S_DSBD_WKDETAIL = agged1.join(agged2, Seq("offerNumber", "baseYearWeek", "offerChangeSeq"), "left")
 
-    F9S_DSBD_WKDETAIL.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_DSBD_WKDETAIL")
+//    F9S_DSBD_WKDETAIL.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_DSBD_WKDETAIL")
 
 //    F9S_DSBD_WKDETAIL.write.mode("append").parquet(pathParquetSave + "/F9S_DSBD_WKDETAIL")
+    MongoSpark.save(F9S_DSBD_WKDETAIL.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_DSBD_WKDETAIL").mode("overwrite"))
   }
 }

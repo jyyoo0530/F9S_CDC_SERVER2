@@ -1,4 +1,5 @@
 package query
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
@@ -8,56 +9,156 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
   def dsbd_evntlog(): Unit ={
     println("////////////////////////////////DSBD EVENTLOG: JOB STARTED////////////////////////////////////////")
     lazy val FTR_OFER = spark.read.parquet(pathSourceFrom+"/FTR_OFER")
-    lazy val FTR_DEAL_RSLT = spark.read.parquet(pathSourceFrom+"/FTR_DEAL_RSLT")
+//    lazy val FTR_DEAL_RSLT = spark.read.parquet(pathSourceFrom+"/FTR_DEAL_RSLT")
     lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom+"/FTR_DEAL")
     lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(pathSourceFrom+"/FTR_OFER_LINE_ITEM")
+      .join(FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT", "OFER_NR", "OFER_CHNG_SEQ"),
+        Seq("OFER_NR", "OFER_CHNG_SEQ"), "left")
+      .join(FTR_OFER.select("OFER_NR", "OFER_CHNG_SEQ", "OFER_DT", "OFER_TP_CD", "ALL_YN"),
+        Seq("OFER_NR", "OFER_CHNG_SEQ"), "left")
 
     //event01//
-    lazy val idxList = FTR_OFER.select(col("OFER_NR").as("offerNumber"), col("OFER_TP_CD").as("offerTypeCode"), col("ALL_YN").as("allYn")).distinct
-    lazy val src01a = FTR_OFER.select(col("OFER_NR").as("offerNumber"), col("OFER_DT").as("eventTimestamp"), col("OFER_CHNG_SEQ").as("offerChangeSeq"), col("EMP_NR").as("userId"))
-      .filter("")
-      .groupBy("offerNumber","eventTimestamp", "userId")
-      .agg(min("offerChangeSeq").as("offerChangeSeq"))
-    lazy val src01b = FTR_OFER_LINE_ITEM.select(col("OFER_NR").as("offerNumber"), col("OFER_CHNG_SEQ").as("offerChangeSeq"), col("BSE_YW").as("baseYearWeek"), col("OFER_QTY").as("offerQty").cast("double"), col("OFER_PRCE").as("offerPrice").cast("double"))
-      .withColumn("offerAmt", (col("offerQty")*col("offerPrice")).cast("double"))
-      .withColumn("dealQty", lit(0).cast("double"))
-      .withColumn("dealPrice", lit(0).cast("double"))
-      .withColumn("dealAmt", lit(0).cast("double"))
+    lazy val src01 = FTR_OFER_LINE_ITEM.filter(col("OFER_CHNG_SEQ") === 0)
+      .select(col("OFER_NR").as("offerNumber"),
+        col("OFER_TP_CD").as("offerTypeCode"),
+        col("ALL_YN").as("allYn")
+      )
+      .withColumn("eventCode", lit("01"))
+      .withColumn("eventName", lit("offerPlaced"))
+      .withColumn("lastEventTimestamp", col("OFER_NR").substr(lit(2),lit(22)))
+      .withColumn("lastEventHost", lit("F9_SYSTETM_ADMIN"))
+      .withColumn("eventTimestamp", col("OFER_NR").substr(lit(2), lit(22)))
+      .withColumn("referenceEventNumber", col("OFER_NR"))
+      .withColumn("referenceEventNumberChangeSeq", col("OFER_CHNG_SEQ"))
+      .select(
+        col("BSE_YW").as("baseYearWeek"),
+        col("DEAL_PRCE").as("dealPrice"),
+        col("DEAL_QTY").as("dealQty"),
+        col("DEAL_AMT").as("dealAmt"),
+        col("OFER_PRCE").as("offerPrice"),
+        col("OFER_QTY").as("offerQty"),
+        col("OFER_PRCE")*col("OFER_QTY").as("offerAmt"),
+        col("OFER_PRCE").as("leftPrice"),
+        col("OFER_REMN_QTY").as("leftQty"),
+        col("OFER_PRCE")*col("OFER_REMN_QTY").as("leftAmt")
+      )
       .withColumn("tradeClosing", lit(""))
-      .withColumn("leftQty", lit(0).cast("double"))
-      .withColumn("leftPrice", lit(0).cast("double"))
-      .withColumn("leftAmt", lit(0).cast("double"))
-      .withColumn("referenceEventNumber", col("offerNumber"))
-      .withColumn("referenceEventNumberChangeSeq", lit(0))
-
-    lazy val agged01 = src01a.join(src01b, Seq("offerNumber", "offerChangeSeq"), "left").distinct.withColumn("eventCode", lit("01")).withColumn("eventName", lit("offerPlaced")).withColumn("lastEventTimestamp", col("eventTimestamp")).withColumn("lastEventHost", col("userId")).groupBy("offerNumber","eventCode", "eventName", "lastEventTimestamp", "lastEventHost").agg(collect_list(struct("eventTimestamp", "referenceEventNumber", "referenceEventNumberChangeSeq", "baseYearWeek", "dealQty", "dealPrice", "dealAmt", "offerQty", "offerPrice", "offerAmt","leftQty", "leftPrice", "leftAmt","tradeClosing")).as("eventLog"))
-    lazy val agged01b = agged01.join(idxList, Seq("offerNumber"), "left")
-    lazy val event01 = agged01b.select("offerNumber", "offerTypeCode", "allYn", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost", "eventLog")
+    lazy val event01 = src01.groupBy("offerNumber","offerTypeCode", "allYn", "eventCode","eventName","lastEventTimeStamp","lastEventHost")
+      .agg(collect_set(struct("eventTimestamp",
+        "referenceEventNumber",
+        "referenceEventNumberChangeSeq",
+        "baseYearWeek",
+        "dealPrice",
+        "dealQty",
+        "dealAmt",
+        "offerPrice",
+        "offerQty",
+        "offerAmt",
+        "leftPrice",
+        "leftQty",
+        "leftAmt",
+        "tradeClosing")).as("eventLog"))
+      .groupBy("offerNumber").agg(collect_set(struct("eventCode",
+      "eventName",
+      "lastEventTimestamp",
+      "lastEventHost",
+      "eventLog")).as("eventCell"))
 
     //event02
-    lazy val src02a = FTR_OFER.select(col("OFER_NR").as("offerNumber"), col("OFER_CHNG_SEQ").as("offerChangeSeq"), col("EMP_NR").as("userId"))
-    lazy val src02b = FTR_DEAL.select(col("DEAL_NR").as("dealNumber"), col("DEAL_CHNG_SEQ").as("dealChangeSeq"), col("OFER_NR").as("offerNumber"), col("OFER_CHNG_SEQ").as("offerChangeSeq"), col("DEAL_DT").as("eventTimestamp"))
-    lazy val src02c = FTR_DEAL_RSLT.filter(col("DEAL_QTY") > 0).select(col("OFER_NR").as("offerNumber"), col("OFER_CHNG_SEQ").as("offerChangeSeq"), col("DEAL_YW").as("baseYearWeek"), col("DEAL_QTY").as("dealQty").cast("double"), col("DEAL_PRCE").as("dealPrice").cast("double"), col("DEAL_NR").as("dealNumber"), col("DEAL_CHNG_SEQ").as("dealChangeSeq").cast("integer")).withColumn("dealAmt", (col("dealQty")*col("dealPrice")).cast("double")).withColumn("offerQty", lit(0).cast("double")).withColumn("offerPrice", lit(0).cast("double")).withColumn("offerAmt", lit(0).cast("double")).withColumn("leftPrice", lit(0).cast("double")).withColumn("leftQty", lit(0).cast("double")).withColumn("leftAmt", lit(0).cast("double")).withColumn("tradeClosing", lit(""))
-
-    lazy val src02d = src02c.join(src02b, Seq("dealNumber", "dealChangeSeq", "offerNumber", "offerChangeSeq"), "left")
-    lazy val src02e = src02a.withColumn("eventCode", lit("02")).withColumn("eventName", lit("dealt"))
-    lazy val agged02 = src02d.join(src02e, Seq("offerNumber", "offerChangeSeq"), "left").withColumn("lastEventTimestamp", col("eventTimestamp")).withColumn("referenceEventNumber", col("dealNumber")).withColumn("referenceEventNumberChangeSeq", col("dealChangeSeq")).withColumn("lastEventHost", col("userId")).drop("userId").groupBy("offerNumber", "offerChangeSeq", "dealNumber", "dealChangeSeq", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost").agg(collect_list(struct("eventTimestamp", "referenceEventNumber", "referenceEventNumberChangeSeq","baseYearWeek", "dealQty", "dealPrice", "dealAmt","offerQty", "offerPrice", "offerAmt", "leftQty", "leftPrice", "leftAmt", "tradeClosing")).as("eventLog"))
-
-    lazy val agged02b = agged02.join(idxList, Seq("offerNumber"), "left").drop("dealNumber", "dealChangeSeq", "offerChangeSeq")
-    lazy val event02 = agged02b.select("offerNumber", "offerTypeCode", "allYn", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost", "eventLog")
+    lazy val src02 = FTR_OFER_LINE_ITEM.filter(col("OFER_CHNG_SEQ") > 0)
+      .select(col("OFER_NR").as("offerNumber"),
+        col("OFER_TP_CD").as("offerTypeCode"),
+        col("ALL_YN").as("allYn"),
+        col("OFER_CHNG_SEQ").as("offerChangeSeq")
+      )
+      .withColumn("eventCode", lit("02"))
+      .withColumn("eventName", lit("offerDealt"))
+      .withColumn("lastEventTimestamp", col("DEAL_DT"))
+      .withColumn("lastEventHost", lit("F9_SYSTETM_ADMIN"))
+      .withColumn("eventTimestamp", col("DEAL_DT"))
+      .withColumn("referenceEventNumber", col("DEAL_NR"))
+      .withColumn("referenceEventNumberChangeSeq", col("DEAL_CHNG_SEQ"))
+      .select(
+        col("BSE_YW").as("baseYearWeek"),
+        col("DEAL_PRCE").as("dealPrice"),
+        col("DEAL_QTY").as("dealQty"),
+        col("DEAL_AMT").as("dealAmt"),
+        col("OFER_PRCE").as("offerPrice"),
+        col("OFER_QTY").as("offerQty"),
+        col("OFER_PRCE")*col("OFER_QTY").as("offerAmt"),
+        col("OFER_PRCE").as("leftPrice"),
+        col("OFER_REMN_QTY").as("leftQty"),
+        col("OFER_PRCE")*col("OFER_REMN_QTY").as("leftAmt"))
+      .withColumn("tradeClosing", lit(""))
+    lazy val event02 = src02.groupBy("offerNumber", "offerChangeSeq","eventIdx", "eventCode", "eventName", "lastEventTimeStamp", "lastEventHost")
+      .agg(collect_set(struct("eventTimestamp",
+        "referenceEventNumber",
+        "referenceEventNumberChangeSeq",
+        "baseYearWeek",
+        "dealPrice",
+        "dealQty",
+        "dealAmt",
+        "offerPrice",
+        "offerQty",
+        "offerAmt",
+        "leftPrice",
+        "leftQty",
+        "leftAmt",
+        "tradeClosing")).as("eventLog")).drop("offerChangeSeq")
+      .groupBy("offerNumber").agg(collect_set(struct("eventCode",
+      "eventName",
+      "lastEventTimestamp",
+      "lastEventHost",
+      "eventLog")).as("eventCell"))
 
     //event03
-    lazy val src03a = FTR_OFER_LINE_ITEM.filter(col("BSE_YW") < currentWk).select(col("OFER_NR").as("offerNumber"), col("OFER_CHNG_SEQ").as("offerChangeSeq"), col("BSE_YW").as("baseYearWeek"), col("OFER_REMN_QTY").as("leftQty")).groupBy("offerNumber", "baseYearWeek", "leftQty").agg(max("offerChangeSeq").as("offerChangeSeq")).withColumn("offerQty", lit(0).cast("double")).withColumn("offerPrice", lit(0).cast("double")).withColumn("offerAmt", lit(0).cast("double")).withColumn("dealQty", lit(0).cast("double")).withColumn("dealPrice", lit(0).cast("double")).withColumn("dealAmt", lit(0).cast("double")).withColumn("leftPrice", lit(0).cast("double")).withColumn("leftAmt", lit(0).cast("double")).withColumn("tradeClosing", lit("")).withColumn("referenceEventNumber", col("offerNumber")).withColumn("referenceEventNumberChangeSeq", col("offerChangeSeq").cast("integer")).withColumn("eventCode", lit("03")).withColumn("eventName", lit("weekExpired")).withColumn("lastEventHost", lit("SYSTEM_ADMIN"))
-      .withColumn("year", (col("baseYearWeek").substr(lit(1), lit(4)) cast "bigint")*10000)
-      .withColumn("month", (format_number(col("baseYearWeek").substr(lit(5), lit(6))*7/30.4 ,0)+1)*100)
-      .withColumn("day", format_number(col("baseYearWeek").substr(lit(5),lit(6))*7%30.4,0))
-      .withColumn("eventTimestamp", ((((col("year")+col("month")+col("day")) cast "long") cast "string")+lit("000000000000")).cast("string")).drop("year", "month", "day")
-      .withColumn("lastEventTimestamp", col("eventTimestamp").cast("string"))
-    lazy val src03b = src03a.groupBy("eventCode", "eventName", "offerNumber", "offerChangeSeq", "lastEventHost").agg(collect_list(struct("eventTimestamp", "referenceEventNumber", "referenceEventNumberChangeSeq", "baseYearWeek", "dealQty", "dealPrice", "dealAmt", "offerQty", "offerPrice", "offerAmt", "leftQty", "leftPrice", "leftAmt", "tradeClosing")).as("eventLog")).drop("offerChangeSeq")
-    lazy val src03c = src03a.select("offerNumber", "offerChangeSeq","lastEventTimeStamp").distinct
-    lazy val agged03 = src03c.join(src03b, Seq("offerNumber"), "left")
-    lazy val agged03b = agged03.join(idxList, Seq("offerNumber"), "left").drop("offerChangeSeq")
-    lazy val event03 = agged03b.select("offerNumber", "offerTypeCode", "allYn", "eventCode", "eventName", "lastEventTimestamp", "lastEventHost", "eventLog")
+    lazy val src03a = FTR_OFER_LINE_ITEM.filter(col("BSE_YW") < currentWk)
+      .select(col("OFER_NR").as("offerNumber"),
+        col("OFER_TP_CD").as("offerTypeCode"),
+        col("ALL_YN").as("allYn"),
+        col("OFER_CHNG_SEQ").as("offerChangeSeq")
+      )
+      .withColumn("eventCode", lit("03"))
+      .withColumn("eventName", lit("weekExpired"))
+      .withColumn("lastEventTimestamp", col("DEAL_DT"))
+      .withColumn("lastEventHost", lit("F9_SYSTETM_ADMIN"))
+      .withColumn("eventTimestamp", col("DEAL_DT"))
+      .withColumn("referenceEventNumber", col("DEAL_NR"))
+      .withColumn("referenceEventNumberChangeSeq", col("DEAL_CHNG_SEQ"))
+      .select(
+        col("BSE_YW").as("baseYearWeek"),
+        col("DEAL_PRCE").as("dealPrice"),
+        col("DEAL_QTY").as("dealQty"),
+        col("DEAL_AMT").as("dealAmt"),
+        col("OFER_PRCE").as("offerPrice"),
+        col("OFER_QTY").as("offerQty"),
+        col("OFER_PRCE")*col("OFER_QTY").as("offerAmt"),
+        col("OFER_PRCE").as("leftPrice"),
+        col("OFER_REMN_QTY").as("leftQty"),
+        col("OFER_PRCE")*col("OFER_REMN_QTY").as("leftAmt"))
+      .withColumn("tradeClosing", lit(""))
+    lazy val event02 = src02.groupBy("offerNumber", "offerChangeSeq","eventIdx", "eventCode", "eventName", "lastEventTimeStamp", "lastEventHost")
+      .agg(collect_set(struct("eventTimestamp",
+        "referenceEventNumber",
+        "referenceEventNumberChangeSeq",
+        "baseYearWeek",
+        "dealPrice",
+        "dealQty",
+        "dealAmt",
+        "offerPrice",
+        "offerQty",
+        "offerAmt",
+        "leftPrice",
+        "leftQty",
+        "leftAmt",
+        "tradeClosing")).as("eventLog")).drop("offerChangeSeq")
+      .groupBy("offerNumber").agg(collect_set(struct("eventCode",
+      "eventName",
+      "lastEventTimestamp",
+      "lastEventHost",
+      "eventLog")).as("eventCell"))
+
+
 
 
     //event04
@@ -82,8 +183,12 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
     val F9S_DSBD_EVNTLOG =  event01.union(event02).union(event03).union(event04).union(event05).groupBy("offerNumber", "offerTypeCode", "allYn").agg(collect_list(struct("eventCode", "eventName", "lastEventTimestamp", "lastEventHost", "eventLog")).as("eventCell"))
 
 
-    F9S_DSBD_EVNTLOG.repartition(1).write.mode("append").json(pathJsonSave+"/F9S_DSBD_EVNTLOG")
+//    F9S_DSBD_EVNTLOG.repartition(1).write.mode("append").json(pathJsonSave+"/F9S_DSBD_EVNTLOG")
 //    F9S_DSBD_EVNTLOG.write.mode("append").parquet(pathParquetSave+"/F9S_DSBD_EVNTLOG")
+
+    MongoSpark.save(F9S_DSBD_EVNTLOG.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_DSBD_EVNTLOG").mode("overwrite"))
     F9S_DSBD_EVNTLOG.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

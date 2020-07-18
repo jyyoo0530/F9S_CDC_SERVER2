@@ -1,5 +1,6 @@
 package query
 
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
@@ -54,9 +55,11 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
       .agg(collect_list(struct("baseYearWeek", "open", "high", "low", "close", "status", "changeValue", "changeRate", "latestEventTimeStamp", "volume")).as("Cell"))
       .drop("baseYearWeek", "open", "high", "low", "close", "status", "changeValue", "changeRate", "latestEventTimeStamp", "volume")
 
-    F9S_MW_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_SUM")
-
+//    F9S_MW_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_SUM")
 //    F9S_MW_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_MW_SUM")
+    MongoSpark.save(F9S_MW_SUM.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_MW_SUM").mode("overwrite"))
     F9S_MW_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

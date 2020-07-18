@@ -153,6 +153,10 @@
     <orderEntry type="library" name="sbt: org.json4s:json4s-jackson_2.12:3.6.6:jar" level="project" />
     <orderEntry type="library" name="sbt: org.json4s:json4s-scalap_2.12:3.6.6:jar" level="project" />
     <orderEntry type="library" name="sbt: org.lz4:lz4-java:1.7.1:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.mongodb.spark:mongo-spark-connector_2.12:3.0.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.mongodb:bson:4.0.5:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.mongodb:mongodb-driver-core:4.0.5:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.mongodb:mongodb-driver-sync:4.0.5:jar" level="project" />
     <orderEntry type="library" name="sbt: org.mortbay.jetty:jetty-sslengine:6.1.26:jar" level="project" />
     <orderEntry type="library" name="sbt: org.mortbay.jetty:jetty-util:6.1.26:jar" level="project" />
     <orderEntry type="library" name="sbt: org.objenesis:objenesis:2.5.1:jar" level="project" />

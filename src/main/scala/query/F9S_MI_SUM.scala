@@ -1,5 +1,6 @@
 package query
 
+import com.mongodb.spark.MongoSpark
 import org.apache.parquet.format.IntType
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
@@ -45,10 +46,13 @@ case class F9S_MI_SUM(var spark: SparkSession, var pathSourceFrom: String,
     val F9S_MI_SUM = finalSrc.groupBy("idxSubject", "idxCategory", "idxCd", "idxNm", "interval").agg(collect_list(struct("intervalStamp", "value", "changeValue", "changeRate", "volume")).as("Cell"))
 
 
-    F9S_MI_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MI_SUM")
+//    F9S_MI_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MI_SUM")
 
 
     F9S_MI_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_MI_SUM")
+    MongoSpark.save(F9S_MI_SUM.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_MI_SUM").mode("overwrite"))
     F9S_MI_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

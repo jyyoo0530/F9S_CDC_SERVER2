@@ -1,5 +1,6 @@
 package query
 
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
@@ -55,11 +56,13 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
     lazy val tgData = F9S_MW_WKDETAIL.withColumn("writeIdx", concat(col("marketTypeCode"), col("baseYearWeek"), col("rdTermCode"), col("containerTypeCode"), col("paymentTermCode"), col("polCode"), col("podCode"), col("interval"))).withColumn("rte_idx", concat(col("polCode"), col("podCode")))
 
 
-      F9S_MW_WKDETAIL.repartition(1).drop("rte_idx","writeIdx")
-        .write.mode("append").json(pathJsonSave+"/F9S_MW_WKDETAIL")
+//      F9S_MW_WKDETAIL.repartition(1).drop("rte_idx","writeIdx")
+//        .write.mode("append").json(pathJsonSave+"/F9S_MW_WKDETAIL")
 
 //    F9S_MW_WKDETAIL.write.mode("append").parquet(pathParquetSave+"/F9S_MW_WKDETAIL")
-
+    MongoSpark.save(F9S_MW_WKDETAIL.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_MW_WKDETAIL").mode("overwrite"))
     F9S_MW_WKDETAIL.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

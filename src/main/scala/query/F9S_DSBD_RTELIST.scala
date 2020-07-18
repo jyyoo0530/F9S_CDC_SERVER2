@@ -1,5 +1,9 @@
 package query
 
+import com.mongodb.spark.MongoSpark
+import com.mongodb.spark._
+import com.mongodb.spark.config._
+import org.bson.Document
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
@@ -48,11 +52,13 @@ case class F9S_DSBD_RTELIST(var spark: SparkSession, var pathSourceFrom: String,
     lazy val agged1 = srcOfer.join(srcRte, Seq("offerNumber"), "left").drop("offerNumber").distinct
     lazy val F9S_DSBD_RTELIST = agged1.groupBy("userId", "offerTypeCode").agg(collect_list(struct("polCode", "podCode", "polName", "podName")).as("rteList"))
 
-    
-    F9S_DSBD_RTELIST.repartition(1).write.mode("overwrite").json(pathJsonSave + "/F9S_DSBD_RTELIST")
 
-//    F9S_DSBD_RTELIST.write.mode("overwrite").parquet(pathParquetSave + "/F9S_DSBD_RTELIST")
+    //    F9S_DSBD_RTELIST.repartition(1).write.mode("overwrite").json(pathJsonSave + "/F9S_DSBD_RTELIST")
 
+    //    F9S_DSBD_RTELIST.write.mode("overwrite").parquet(pathParquetSave + "/F9S_DSBD_RTELIST")
+    MongoSpark.save(F9S_DSBD_RTELIST.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_DSBD_RTELIST").mode("overwrite"))
     F9S_DSBD_RTELIST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

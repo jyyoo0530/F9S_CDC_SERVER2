@@ -1,5 +1,6 @@
 package query
 
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
@@ -46,9 +47,11 @@ case class F9S_DSBD_SUM(var spark: SparkSession, var pathSourceFrom: String, var
 
     val F9S_DSBD_SUM = srcAgged.groupBy("userId", "offerTypeCode").agg(collect_set(struct("offerNumber", "offerChangeSeq", "allYn", "routeItem", "lineItem", "eventTimestamp", "referenceEventNumber", "referenceEventChangeSeq", "polCount", "podCount", "offerStatus", "carrierItem", "carrierCount")).as("cell"))
 
-    F9S_DSBD_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_DSBD_SUM")
-
+//    F9S_DSBD_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_DSBD_SUM")
 //    F9S_DSBD_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_DSBD_SUM")
+    MongoSpark.save(F9S_DSBD_SUM.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_DSBD_SUM").mode("overwrite"))
 
     F9S_DSBD_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

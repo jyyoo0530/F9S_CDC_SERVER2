@@ -1,5 +1,6 @@
 package query
 
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
@@ -78,10 +79,11 @@ case class F9S_MW_BIDASK(var spark: SparkSession, var pathSourceFrom: String,
       .agg(collect_list(struct("tradeOfferNumber", "tradeOfferChangeSeq", "carrierCode", "carrierCount", "headPolCode", "headPodCode", "headPolName", "headPodName", "polCount", "podCount", "avgQty", "avgPrice", "allYn", "minYearWeek", "maxYearWeek", "maxPrice", "minPrice")).as("Cell"))
 
 
-    F9S_MW_BIDASK.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_BIDASK")
-
-
+//    F9S_MW_BIDASK.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_BIDASK")
 //    F9S_MW_BIDASK.write.mode("append").parquet(pathParquetSave + "/F9S_MW_BIDASK")
+    MongoSpark.save(F9S_MW_BIDASK.write
+      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("collection", "F9S_MW_BIDASK").mode("overwrite"))
     F9S_MW_BIDASK.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

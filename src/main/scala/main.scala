@@ -135,15 +135,17 @@ object main {
 
     //////////////////////////////////F9STATS UPDATE START////////////////////////////////
     //        F9S_CRYR_LST(spark, a, b, c).cryr_lst()
-//    F9S_DSBD_RTELIST(spark, a, b, c).dsbd_rtelist()
+//    F9S_DSBD_RAW(spark, a, b, c).dsbd_raw()
+    //    F9S_DSBD_RTELIST(spark, a, b, c).dsbd_rtelist()
 //    F9S_DSBD_WKLIST(spark, a, b, c).dsbd_wklist()
 //    F9S_DSBD_SUM(spark, a, b, c, currentWk).dsbd_sum()
 //    F9S_DSBD_WKDETAIL(spark, a, b, c).dsbd_wkdetail()
 //    F9S_DSBD_EVNTLOG(spark, a, b, c, currentWk).dsbd_evntlog()
 //    F9S_STATS_RAW(spark, a, b, c).stats_raw()
+
 //    F9S_MW_SUM(spark, a, b, c, currentWk).mw_sum()
 //    F9S_MW_HST(spark, a, b, c).mw_hst()
-//    F9S_MW_WKDETAIL(spark, a, b, c).mw_wkdetail()
+    F9S_MW_WKDETAIL(spark, a, b, c).mw_wkdetail()
 //    F9S_MW_BIDASK(spark, a, b, c).mw_bidask()
 //    F9S_MI_SUM(spark, a, b, c).mi_sum()
 //    F9S_IDX_LST(spark, b, c).idx_lst()

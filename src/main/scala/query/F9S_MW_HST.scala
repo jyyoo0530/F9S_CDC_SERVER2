@@ -49,14 +49,6 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
       .agg(collect_list(struct("idx", "timestamp", "referenceEventNumber", "referenceEventChangeNumber", "dealQty", "dealPrice", "dealAmt", "priceChange", "priceRate")).as("Cell"))
       .drop("timestamp", "referenceEventNumber", "referenceEventChangeNumber", "dealQty", "dealPrice", "dealAmt", "priceChange", "priceRate", "idx")
 
-    lazy val mwidx = F9S_MW_HST.select("marketTypeCode", "rdTermCode", "containerTypeCode", "paymentTermCode", "polCode", "podCode", "baseYearWeek").distinct.withColumn("writeIdx", concat(col("marketTypeCode"), col("rdTermCode"), col("containerTypeCode"), col("paymentTermCode"), col("polCode"), col("podCode"), col("baseYearWeek"))).withColumn("idx", row_number.over(Window.orderBy(col("writeIdx")))).withColumn("rte_idx", concat(col("polCode"), col("podCode")))
-    lazy val idx = mwidx.collect()
-    lazy val marketTypeCode = mwidx.select("marketTypeCode").collect().map(_ (0).toString)
-    lazy val paymentTermCode = mwidx.select("paymentTermCode").collect().map(_ (0).toString)
-    lazy val rdTermCode = mwidx.select("rdTermCode").collect().map(_ (0).toString)
-    lazy val containerTypeCode = mwidx.select("containerTypeCode").collect().map(_ (0).toString)
-    lazy val rte_idx = mwidx.select("rte_idx").collect().map(_ (0).toString)
-    lazy val baseYearWeek = mwidx.select("baseYearWeek").collect().map(_ (0).toString)
 
     F9S_MW_HST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_HST")
 

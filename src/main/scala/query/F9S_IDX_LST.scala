@@ -5,10 +5,11 @@ import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
-case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var pathJsonSave: String){
-  def idx_lst(): Unit ={
+case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var pathJsonSave: String) {
+  def idx_lst(): Unit = {
     println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
-    val F9S_MI_SUM = spark.read.parquet(pathParquetSave+"/F9S_MI_SUM")
+    val F9S_MI_SUM = spark.read.parquet(pathParquetSave + "/F9S_MI_SUM")
+    val F9S_MW_WKDETAIL = spark.read.parquet(pathParquetSave + "/F9S_MW_WKDETAIL").select("interval")
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
       StructField("interval", StringType, nullable = false)
@@ -30,15 +31,25 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
     ))
     val intervalDf = spark.createDataFrame(rdd, schema)
 
-    val F9S_IDX_LST=F9S_MI_SUM
+    val F9S_IDX_LST = F9S_MI_SUM
       .join(intervalDf, Seq("interval"), "left")
       .sort(col("intervalSeq").asc).distinct
       .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
       .agg(collect_list(struct("intervalSeq", "interval")).as("intervalItem"))
+      .union(
+          F9S_MW_WKDETAIL.join(intervalDf, Seq("interval"), "left")
+          .distinct
+          .withColumn("idxSubject", lit("marketWatch"))
+          .withColumn("idxCategory", lit("weekDetail"))
+          .withColumn("idxCd", lit("MWWD"))
+          .withColumn("idxNm", lit("market watch weekdetail frequencies"))
+          .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
+          .agg(collect_set(struct("intervalSeq", "interval")).as("intervalItem"))
+      )
 
 
-    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave+"/F9S_IDX_LST")
-//    F9S_IDX_LST.write.mode("append").parquet(pathParquetSave+"/F9S_IDX_LST")
+//    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_IDX_LST")
+        F9S_IDX_LST.write.mode("overwrite").parquet(pathParquetSave+"/F9S_IDX_LST")
     MongoSpark.save(F9S_IDX_LST.write
       .option("uri", "mongodb://data.freight9.com/f9s")
       .option("collection", "F9S_IDX_LST").mode("overwrite"))

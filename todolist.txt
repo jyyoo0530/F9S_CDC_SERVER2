@@ -2,3 +2,9 @@
 1) DSBD_WKDETAIL 문제해결
 2) Query Tuning
 3) CDC SVC 구현
+
+2020.07.19
+1) 데이터 체크
+
+2020.07.20
+1) WINDOW PARTITIONBY F9S_MW_SUM

@@ -5,26 +5,48 @@ import org.apache.spark.sql.functions._
 
 case class F9S_STATS_RAW(var spark: SparkSession, var pathSourceFrom: String,
                          var pathParquetSave: String, var pathJsonSave: String) {
-  def stats_raw() {
-    val F9S_STATS_RAW = spark.read.parquet(pathSourceFrom + "/FTR_DEAL_RTE")
-      .filter(col("TRDE_LOC_TP_CD") === "02" || col("TRDE_LOC_TP_CD") === "03")
-      .withColumn("a1", col("OFER_NR"))
-      .withColumn("a2", col("OFER_CHNG_SEQ"))
-      .withColumn("DEAL_DATE", col("DEAL_NR").substr(lit(2), lit(20)))
-      .drop("DEL_YN", "ID", "CRE_USR_ID", "UPD_USR_ID", "DEAL_ID", "DEAL_CHNG_SEQ")
+  def stats_raw(): Unit = {
+    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
+    lazy val FTR_DEAL_CRYR = spark.read.parquet(pathSourceFrom + "/FTR_DEAL_CRYR")
+    lazy val FTR_DEAL_RTE = spark.read.parquet(pathSourceFrom + "/FTR_DEAL_RTE")
+    lazy val FTR_DEAL_LINE_ITEM = spark.read.parquet(pathSourceFrom + "/FTR_DEAL_LINE_ITEM")
+    lazy val MDM_CRYR = spark.read.parquet(pathSourceFrom + "/MDM_CRYR").select("CRYR_CD", "CRYR_NM")
+      .withColumn("carrierCode", col("CRYR_CD"))
+      .withColumn("carrierName", col("CRYR_NM"))
+      .drop("CRYR_CD", "CRYR_NM")
+    lazy val MDM_PORT = spark.read.parquet(pathSourceFrom + "/MDM_PORT")
 
-      .crossJoin(
-        spark.read.parquet(pathSourceFrom + "/FTR_DEAL_RSLT")
-          .withColumn("b1", col("OFER_NR"))
-          .withColumn("b2", col("OFER_CHNG_SEQ"))
-          .select("DEAL_AMT", "DEAL_CHNG_SEQ", "DEAL_PRCE", "DEAL_QTY", "DEAL_SKIP_YN", "DEAL_SUCC_YN", "DEAL_YW", "REG_SEQ", "b1", "b2")
-      )
-      .withColumn("a", concat(col("a2"), col("a1")))
-      .withColumn("b", concat(col("b2"), col("b1")))
-      .drop("b1", "b2")
-      .filter(col("a") === col("b"))
-      .drop("a", "b")
+    lazy val srcIdx = FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT").distinct
+      .join(FTR_DEAL_LINE_ITEM.select("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW").distinct, Seq("DEAL_NR", "DEAL_CHNG_SEQ"), "left")
+      .join(FTR_DEAL_RTE.select("DEAL_NR", "DEAL_CHNG_SEQ", "OFFER_REG_SEQ").distinct, Seq("DEAL_NR", "DEAL_CHNG_SEQ"), "left")
+      .join(FTR_DEAL_CRYR.select("DEAL_NR", "DEAL_CHNG_SEQ", "OFER_CRYR_CD")
+        .withColumn("carrierCode", col("OFER_CRYR_CD")).drop("OFER_CRYR_CD")
+        .join(MDM_CRYR, Seq("carrierCode"), "left")
+        .groupBy("DEAL_NR", "DEAL_CHNG_SEQ")
+        .agg(collect_set(struct("carrierCode", "carrierName")).as("carrierItem")),
+        Seq("DEAL_NR", "DEAL_CHNG_SEQ"), "left")
+    lazy val srcRte = FTR_DEAL_RTE.select("DEAL_NR", "DEAL_CHNG_SEQ", "OFFER_REG_SEQ").distinct
+      .join(FTR_DEAL_RTE
+        .filter(col("TRDE_LOC_TP_CD") === "02")
+        .select("DEAL_NR", "DEAL_CHNG_SEQ", "TRDE_LOC_CD", "OFFER_REG_SEQ")
+        .withColumn("polCode", col("TRDE_LOC_CD")).drop("TRDE_LOC_CD"),
+        Seq("DEAL_NR", "DEAL_CHNG_SEQ", "OFFER_REG_SEQ"),
+        "left")
+      .join(FTR_DEAL_RTE
+        .filter(col("TRDE_LOC_TP_CD") === "03")
+        .select("DEAL_NR", "DEAL_CHNG_SEQ", "TRDE_LOC_CD", "OFFER_REG_SEQ")
+        .withColumn("podCode", col("TRDE_LOC_CD")).drop("TRDE_LOC_CD"),
+        Seq("DEAL_NR", "DEAL_CHNG_SEQ", "OFFER_REG_SEQ"),
+        "left")
+    lazy val srcLineItem = FTR_DEAL_LINE_ITEM
+      .select("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW", "DEAL_AMT", "DEAL_PRCE", "DEAL_QTY", "OFER_PRCE", "OFER_QTY", "OFER_REMN_QTY")
+      .distinct
 
-    F9S_STATS_RAW.write.mode("append").parquet(pathParquetSave + "/F9S_STATS_RAW")
+    val F9S_STATS_RAW = srcIdx.join(srcRte, Seq("DEAL_NR", "DEAL_CHNG_SEQ", "OFFER_REG_SEQ"), "left").drop("OFFER_REG_SEQ")
+      .join(srcLineItem, Seq("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW"), "left")
+
+    F9S_STATS_RAW.printSchema
+    F9S_STATS_RAW.write.mode("overwrite").parquet(pathParquetSave + "/F9S_STATS_RAW")
+
   }
 }

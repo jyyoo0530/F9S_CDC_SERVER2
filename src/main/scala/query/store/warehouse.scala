@@ -1,6 +1,7 @@
-//package query.store
-//
-//class warehouse {
-//  def parquet2File
-//
-//}
+package query.store
+
+class Warehouse()
+
+class warehouse {
+
+}

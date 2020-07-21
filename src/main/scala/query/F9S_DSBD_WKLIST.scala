@@ -39,7 +39,7 @@ case class F9S_DSBD_WKLIST(var spark: SparkSession, var pathSourceFrom: String, 
 
     F9S_DSBD_WKLIST.printSchema
     MongoSpark.save(F9S_DSBD_WKLIST.write
-      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
       .option("collection", "F9S_DSBD_WKLIST").mode("overwrite"))
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

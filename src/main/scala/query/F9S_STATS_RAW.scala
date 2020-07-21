@@ -16,7 +16,7 @@ case class F9S_STATS_RAW(var spark: SparkSession, var pathSourceFrom: String,
       .drop("CRYR_CD", "CRYR_NM")
     lazy val MDM_PORT = spark.read.parquet(pathSourceFrom + "/MDM_PORT")
 
-    lazy val srcIdx = FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT").distinct
+    lazy val srcIdx = FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT", "OFER_TP_CD").distinct
       .join(FTR_DEAL_LINE_ITEM.select("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW").distinct, Seq("DEAL_NR", "DEAL_CHNG_SEQ"), "left")
       .join(FTR_DEAL_RTE.select("DEAL_NR", "DEAL_CHNG_SEQ", "OFFER_REG_SEQ").distinct, Seq("DEAL_NR", "DEAL_CHNG_SEQ"), "left")
       .join(FTR_DEAL_CRYR.select("DEAL_NR", "DEAL_CHNG_SEQ", "OFER_CRYR_CD")

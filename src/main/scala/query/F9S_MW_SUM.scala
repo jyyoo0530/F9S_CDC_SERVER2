@@ -16,7 +16,6 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
       col("TRDE_MKT_TP_CD").as("marketTypeCode"),
       col("OFER_RD_TRM_CD").as("rdTermCode"),
       col("OFER_PYMT_TRM_CD").as("paymentTermCode"),
-      col("DEAL_DT"),
       col("DEAL_NR"),
       col("DEAL_CHNG_SEQ"))
       .withColumn("containerTypeCode", lit("01"))
@@ -90,7 +89,7 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
     //        F9S_MW_SUM.repartition(5).write.mode("append").json(pathJsonSave + "/F9S_MW_SUM")
     //    F9S_MW_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_MW_SUM")
     MongoSpark.save(F9S_MW_SUM.write
-      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
       .option("collection", "F9S_MW_SUM").mode("overwrite"))
     F9S_MW_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

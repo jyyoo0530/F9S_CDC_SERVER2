@@ -82,7 +82,7 @@ case class F9S_MW_BIDASK(var spark: SparkSession, var pathSourceFrom: String,
 //    F9S_MW_BIDASK.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_BIDASK")
 //    F9S_MW_BIDASK.write.mode("append").parquet(pathParquetSave + "/F9S_MW_BIDASK")
     MongoSpark.save(F9S_MW_BIDASK.write
-      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
       .option("collection", "F9S_MW_BIDASK").mode("overwrite"))
     F9S_MW_BIDASK.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

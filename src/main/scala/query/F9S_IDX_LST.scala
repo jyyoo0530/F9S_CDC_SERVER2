@@ -49,9 +49,9 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
 
 
 //    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_IDX_LST")
-        F9S_IDX_LST.write.mode("overwrite").parquet(pathParquetSave+"/F9S_IDX_LST")
+//        F9S_IDX_LST.write.mode("overwrite").parquet(pathParquetSave+"/F9S_IDX_LST")
     MongoSpark.save(F9S_IDX_LST.write
-      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
       .option("collection", "F9S_IDX_LST").mode("overwrite"))
     F9S_IDX_LST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

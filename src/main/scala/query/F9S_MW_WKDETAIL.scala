@@ -17,6 +17,7 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
         col("OFER_RD_TRM_CD").as("rdTermCode"),
         col("DEAL_DT").as("timestamp")
       )
+
     lazy val F9S_STATS_RAW = spark.read.parquet(pathParquetSave + "/F9S_STATS_RAW")
       .select(
         col("DEAL_NR").as("dealNumber"),
@@ -216,10 +217,10 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_MW_WKDETAIL.write.mode("overwrite").parquet(pathParquetSave + "/F9S_MW_WKDETAIL")
     F9S_MW_WKDETAIL.printSchema
-    F9S_MW_WKDETAIL.write.mode("append").json(pathJsonSave + "/F9S_MW_WKDETAIL")
+//    F9S_MW_WKDETAIL.write.mode("append").json(pathJsonSave + "/F9S_MW_WKDETAIL")
 
     MongoSpark.save(F9S_MW_WKDETAIL.write
-      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
       .option("collection", "F9S_MW_WKDETAIL").mode("overwrite"))
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

@@ -10,55 +10,55 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
                       var pathParquetSave: String, var pathJsonSave: String) {
   def mw_hst(): Unit = {
     println("////////////////////////////////MW HST: JOB STARTED////////////////////////////////////////")
+    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
+      .select(col("DEAL_NR").as("referenceEventNumber"),
+        col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
+        col("TRDE_MKT_TP_CD").as("marketTypeCode"),
+        col("OFER_PYMT_TRM_CD").as("paymentTermCode"),
+        col("OFER_RD_TRM_CD").as("rdTermCode"),
+        col("DEAL_DT").as("timestamp")
+      ).distinct
     lazy val F9S_STATS_RAW = spark.read.parquet(pathParquetSave + "/F9S_STATS_RAW")
-    lazy val FTR_DEAL_CRYR = spark.read.parquet(pathSourceFrom + "/FTR_DEAL_CRYR")
-
-    lazy val companyCodes = FTR_DEAL_CRYR.groupBy("OFER_NR", "OFER_CHNG_SEQ").agg(collect_list("OFER_CRYR_CD").as("companyCodes"))
-    lazy val polData = F9S_STATS_RAW.filter(col("TRDE_LOC_TP_CD") === "02")
-      .withColumn("polCode", col("TRDE_LOC_CD"))
-      .drop("DEAL_NR", "TRDE_LOC_TP_CD", "TRDE_LOC_CD", "DEAL_CHNG_SEQ", "DEAL_SKIP_YN", "DEAL_SUCC_YN", "REG_SEQ", "a1", "a2", "OFFER_REG_SEQ")
-    lazy val podData = F9S_STATS_RAW.filter(col("TRDE_LOC_TP_CD") === "03")
-      .withColumn("podCode", col("TRDE_LOC_CD"))
-      .drop("TRDE_LOC_TP_CD", "TRDE_LOC_CD", "DEAL_SKIP_YN", "DEAL_SUCC_YN", "REG_SEQ", "DEAL_DATE", "DEAL_YEAR", "DEAL_MONTH", "DEAL_DAY", "DEAL_HOUR", "DEAL_MIN", "DEAL_SEC", "DEAL_AMT", "DEAL_PRCE", "DEAL_QTY")
-    lazy val rteData = polData.join(podData, Seq("OFER_NR", "OFER_CHNG_SEQ", "DEAL_YW"), "left")
-      .drop("OFER_NR", "OFER_CHNG_SEQ", "OFFER_REG_SEQ", "a1", "a2")
-      .withColumn("baseYearWeek", col("DEAL_YW")).drop("DEAL_YW")
-      .withColumn("marketTypeCode", lit("01"))
-      .withColumn("rdtermCode", lit("01"))
+      .select(
+        col("DEAL_NR").as("referenceEventNumber"),
+        col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
+        col("BSE_YW").as("baseYearWeek"),
+        col("DEAL_QTY").as("dealQty"),
+        col("DEAL_PRCE").as("dealPrice"),
+        col("DEAL_QTY").multiply(col("DEAL_PRCE")).as("dealAmt"),
+        col("OFER_TP_CD").as("offerTypeCode"),
+        col("polCode"),
+        col("podCode"))
       .withColumn("containerTypeCode", lit("01"))
-      .withColumn("paymentTermCode", lit("01"))
       .withColumn("qtyUnit", lit("T"))
-      .withColumn("timestamp", col("DEAL_DATE")).drop("DEAL_DATE")
-      .withColumn("referenceEventNumber", col("DEAL_NR")).drop("DEAL_NR")
-      .withColumn("referenceEventChangeNumber", col("DEAL_CHNG_SEQ")).drop("DEAL_CHNG_SEQ")
-      .withColumn("dealQty", col("DEAL_QTY")).drop("DEAL_QTY")
-      .withColumn("dealPrice", col("DEAL_PRCE")).drop("DEAL_PRCE")
-      .withColumn("dealAmt", col("DEAL_AMT")).drop("DEAL_AMT")
-      .distinct
-      .withColumn("idx", row_number.over(Window.partitionBy(col("marketTypeCode"), col("rdTermCode"), col("containerTypeCode"), col("paymentTermCode"), col("polCode"), col("podCode"), col("qtyUnit"), col("baseYearWeek")).orderBy(col("marketTypeCode").asc, col("rdTermCode").asc, col("containerTypeCode").asc, col("paymentTermCode").asc, col("polCode").asc, col("podCode").asc, col("qtyUnit").asc, col("baseYearWeek").asc, col("timestamp").asc)))
+      .filter(col("dealQty") =!= 0 and col("offerTypeCode") === "S").distinct
 
-    lazy val priceChange = rteData.withColumn("tmp", lag(col("dealPrice"), 1, 0).over(Window.partitionBy(col("marketTypeCode"), col("rdTermCode"), col("containerTypeCode"), col("paymentTermCode"), col("polCode"), col("podCode"), col("qtyUnit"), col("baseYearWeek")).orderBy(col("marketTypeCode").asc, col("rdTermCode").asc, col("containerTypeCode").asc, col("paymentTermCode").asc, col("polCode").asc, col("podCode").asc, col("qtyUnit").asc, col("baseYearWeek").asc, col("timestamp").asc)))
-      .withColumn("priceChange", col("dealPrice") - col("tmp")).drop("tmp")
-
-    val aggData = priceChange.withColumn("priceRate", col("priceChange") / col("dealPrice")) // 중요
-
-    lazy val listIdx = aggData.select("referenceEventNumber", "referenceEventChangeNumber", "marketTypeCode", "rdTermCode", "containerTypeCode", "paymentTermCode", "polCode", "podCode", "qtyUnit", "baseYearWeek").distinct
-
-    val F9S_MW_HST = listIdx.join(aggData, Seq("referenceEventNumber", "referenceEventChangeNumber", "marketTypeCode", "rdTermCode", "containerTypeCode", "paymentTermCode", "polCode", "podCode", "qtyUnit", "baseYearWeek"), "left")
+    lazy val F9S_MW_HST = F9S_STATS_RAW.join(FTR_DEAL, Seq("referenceEventNumber", "referenceEventChangeNumber"), "left").distinct
+      .withColumn("laggedPrice", lag(col("dealPrice"), 1, 0).over(Window.partitionBy("marketTypeCode", "rdTermCode", "containerTypeCode", "paymentTermCode", "polCode", "podCode", "qtyUnit", "baseYearWeek").orderBy("timestamp")))
+      .withColumn("priceChange", col("dealPrice").minus(col("laggedPrice"))).drop("laggedPrice")
+      .withColumn("priceRate", col("priceChange").divide(col("dealPrice")))
+      .withColumn("idx", row_number.over(Window.partitionBy("marketTypeCode", "rdTermCode", "containerTypeCode", "paymentTermCode", "polCode", "podCode", "qtyUnit", "baseYearWeek").orderBy(col("timestamp").asc)))
       .groupBy("marketTypeCode", "rdTermCode", "containerTypeCode", "paymentTermCode", "polCode", "podCode", "qtyUnit", "baseYearWeek")
-      .agg(collect_list(struct("idx", "timestamp", "referenceEventNumber", "referenceEventChangeNumber", "dealQty", "dealPrice", "dealAmt", "priceChange", "priceRate")).as("Cell"))
-      .drop("timestamp", "referenceEventNumber", "referenceEventChangeNumber", "dealQty", "dealPrice", "dealAmt", "priceChange", "priceRate", "idx")
+      .agg(collect_set(struct(col("idx"),
+        col("timestamp"),
+        col("referenceEventNumber"),
+        col("referenceEventChangeNumber"),
+        col("dealQty"),
+        col("dealPrice"),
+        col("dealAmt"),
+        col("priceChange"),
+        col("priceRate"))).as("Cell"))
+      .distinct
 
 
-    F9S_MW_HST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_HST")
+//    F9S_MW_HST.repartition(50).write.mode("append").json(pathJsonSave + "/F9S_MW_HST")
 
-    //    F9S_MW_HST.write.mode("append").parquet(pathParquetSave+"/F9S_MW_HST")
-    aggData.write.mode("append").parquet(pathParquetSave + "/aggData")
+//    F9S_MW_HST.write.mode("append").parquet(pathParquetSave+"/F9S_MW_HST")
     MongoSpark.save(F9S_MW_HST.write
-      .option("uri", "mongodb://data.freight9.com/f9s")
+      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
       .option("collection", "F9S_MW_HST").mode("overwrite"))
     F9S_MW_HST.printSchema
-    aggData.printSchema
+
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 }

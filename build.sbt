@@ -12,6 +12,6 @@ libraryDependencies ++= Seq(
   "org.mongodb.scala" %% "mongo-scala-bson" % "4.0.5",
   "mysql" % "mysql-connector-java" % "8.0.20",
   "org.apache.kafka" % "kafka-clients" % "2.5.0",
-  "com.redislabs" %% "spark-redis" % "2.5.0",
+  "io.lettuce" % "lettuce-core" % "5.3.2.RELEASE",
   "io.vertx" % "vertx-stomp" % "3.9.2"
 )

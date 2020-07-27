@@ -2,9 +2,10 @@ package f9s
 
 import java.util.Properties
 
+import io.lettuce.core.RedisClient
 import org.mongodb.scala.{MongoClient, MongoDatabase}
 
-case class jdbcConf() {
+object jdbcConf {
   val prop = new Properties()
   prop.put("user", "ftradm")
   prop.put("password", "12345678")
@@ -16,4 +17,14 @@ object mongoConf {
   System.setProperty("org.mongodb.async.type", "netty")
   private val mongoClient: MongoClient = MongoClient(uri)
   val database: MongoDatabase = mongoClient.getDatabase("f9s")
+}
+
+
+object redisConf{
+  val redisClient = RedisClient.create("redis://localhost/0")
+  val connection = redisClient.connect()
+}
+
+object kafkaConf{
+
 }

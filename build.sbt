@@ -7,5 +7,11 @@ scalaVersion := "2.12.10"
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "3.0.0",
   "org.apache.spark" %% "spark-sql" % "3.0.0",
-  "org.mongodb.spark" %% "mongo-spark-connector" % "3.0.0"
+  "org.mongodb.spark" %% "mongo-spark-connector" % "3.0.0",
+  "org.mongodb.scala" %% "mongo-scala-driver" % "4.0.5",
+  "org.mongodb.scala" %% "mongo-scala-bson" % "4.0.5",
+  "mysql" % "mysql-connector-java" % "8.0.20",
+  "org.apache.kafka" % "kafka-clients" % "2.5.0",
+  "com.redislabs" %% "spark-redis" % "2.5.0",
+  "io.vertx" % "vertx-stomp" % "3.9.2"
 )

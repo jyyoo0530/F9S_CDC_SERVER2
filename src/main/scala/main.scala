@@ -1,146 +1,156 @@
-import java.util.Properties
+package F9S_CORE
 
+import java.util.{Calendar, GregorianCalendar, Properties}
 
 import org.apache.spark.sql.functions._
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
-
 import scala.collection.mutable.ListBuffer
-import query._
-
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
+import org.apache.spark.sql.expressions.Window
+import org.mongodb.scala._
+import org.mongodb.scala.model.Filters
+import com.mongodb.client.result.DeleteResult
+
+import scala.collection.JavaConverters._
+import org.apache.spark.sql._
+import f9s.core.query._
+import f9s.core.cdc._
+import f9s.mongoConf
+import f9s.appConf
+import f9s.core.sparkConf
 
 
 object main {
   def main(args: Array[String]): Unit = {
 
-    //// choose your mode ////
-    val currentWk = "202029"
-    //    val runMode = "CDC RUN"
-    val runMode = "coldRun"
-    Logger.getLogger("org").setLevel(Level.OFF)
-    Logger.getLogger("akka").setLevel(Level.OFF)
+    //// 1) Chk current Week ////
+    val calendar = new GregorianCalendar()
+    val currentWk = if (calendar.get(Calendar.WEEK_OF_YEAR).toString.length == 1) {
+      calendar.get(Calendar.YEAR).toString + "0" + calendar.get(Calendar.WEEK_OF_YEAR).toString
+    } else {
+      calendar.get(Calendar.YEAR).toString + calendar.get(Calendar.WEEK_OF_YEAR).toString
+    }
+
+    //// 2) App settings ////
+    //Logger
+    if (appConf().sparkLogger == "OFF") {
+      Logger.getLogger("org").setLevel(Level.OFF)
+      Logger.getLogger("akka").setLevel(Level.OFF)
+    } else if (appConf().sparkLogger == "FATAL") {
+      Logger.getLogger("org").setLevel(Level.FATAL)
+      Logger.getLogger("akka").setLevel(Level.FATAL)
+    } else if (appConf().sparkLogger == "") {
+      Logger.getLogger("org").setLevel(Level.ALL)
+      Logger.getLogger("akka").setLevel(Level.ALL)
+    }
+    //Filepath
+    val a = if (appConf().pathMode == "TEST") {
+      appConf().folderOriginTest
+    } else {
+      appConf().folderOrigin
+    }
+    val b = if (appConf().pathMode == "TEST") {
+      appConf().folderStatsTest
+    } else {
+      appConf().folderStats
+    }
+    val c = if (appConf().pathMode == "TEST") {
+      appConf().folderJSONTest
+    } else {
+      appConf().folderJSON
+    }
+    //Table List to check
+    val list2chk = appConf().list2chk
 
     ////////////////////////////////SPARK SESSION///////////////////////////////////
-    val master = "local[*]"
-    //    val master = "spark://192.168.0.6:7077"
-    val appName = "MyApp"
-    val conf: SparkConf = new SparkConf()
-      .setMaster(master)
-      .setAppName(appName)
-      //      .set("spark.driver.allowMultipleContexts", "false")
-      .set("spark.ui.enabled", "true")
-      .set("spark.ui.port", "5555")
-      //      .set("spark.driver.cores", "2")
-      //      .set("spark.driver.memory", "12g")
-      .set("spark.executor.memoryOverhead", "1g")
-      ////      .set("spark.cores.max", "4")
-      //      .set("spark.executor.memory", "10g")
-      ////      .set("spark.speculation", "true")
-      .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      //      .set("spark.executor.instances", "2")
-      //      .set("spark.sql.shuffle.partitions", "300")
-      //      .set("spark.sql.files.maxPartitionBytes", "13421772")
-      .set("spark.mongodb.input.uri", "mongodb://data.freight9.com:27017")
-      .set("spark.mongodb.output.uri", "mongodb://data.freight9.com:27017")
-      .set("spark.mongodb.input.database", "f9s")
-      .set("spark.mongodb.output.database", "f9s")
-
 
     val spark = SparkSession.builder()
-      .config(conf)
-      .appName("CDC FUNCTION")
+      .config(sparkConf().conf)
+      .appName(sparkConf().appName)
       .getOrCreate()
 
-    /// path setting //
-    val rootPath = new java.io.File(".").getCanonicalPath + "/src/main/resources/"
+    //////// MAIN SERVICE STARTED //////
+    var i = appConf().jobIdx
+    while (i / i == 1) {
+      println("//////////////////////Job " + i.toString + " Started//////////////////////")
 
-    val folderOrigin = "file:/" + rootPath + "OriginSource/"
-    val folderStats = "file:/" + rootPath + "stats/"
-    val folderJSON = "file:/" + rootPath + "JSON/"
+      ///// 1) check if there is any updated data in target DB
+      if (i != 1) {
+        val (jobTarget, idf9s) = CDC_SVC(spark, i, a, b, c, currentWk).chk_ID
+        if (jobTarget.sum == 0)  ///// 2) ignore if there is no updates
+          {
+            i += 1
+          }
+          else ////3) save updated data from DB at the thread
+          {
+            val FTR_OFER = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(0), idf9s(0))
+            val FTR_OFER_RTE = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(1), idf9s(1))
+            val FTR_OFER_LINE_ITEM = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(2), idf9s(2))
+            val FTR_OFER_CRYR = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(3), idf9s(3))
+            val FTR_DEAL = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(4), idf9s(4))
+            val FTR_DEAL_LINE_ITEM = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(5), idf9s(5))
+            val FTR_DEAL_CRYR = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(6), idf9s(6))
+            val FTR_DEAL_RTE = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(7), idf9s(7))
+            val FTR_DEAL_RSLT = CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(8), idf9s(8))
 
-    val folderOriginTest = "file:/" + rootPath + "test/OriginSource/"
-    val folderStatsTest = "file:/" + rootPath + "test/stats/"
-    val folderJSONTest = "file:/" + rootPath + "test/JSON/"
+            //// 4) appending F9STATS start//
+            val offerNumbers = FTR_OFER.select("OFER_NR").distinct.rdd.map(r => r(0).asInstanceOf[String].split("\\|").map(_.toString).distinct).collect().flatten.toSeq
+            print(offerNumbers)
+            val userId = FTR_OFER.select("EMP_NR").distinct.rdd.map(r => r(0).asInstanceOf[String].split("\\|").map(_.toString).distinct).collect().flatten.toSeq
+            print(userId)
 
-    val a = folderOrigin
-    val b = folderStatsTest
-    val c = folderJSONTest
+            F9S_DSBD_RAW(spark, a, b, c).append_dsbd_raw(FTR_OFER, FTR_OFER_CRYR, FTR_OFER_RTE, FTR_OFER_LINE_ITEM)
+
+            val collection1: MongoCollection[Document] = mongoConf.database.getCollection("F9S_DSBD_SUM")
+            collection1.deleteMany(Filters.in("userId", userId))
+            val collection2: MongoCollection[Document] = mongoConf.database.getCollection("F9S_DSBD_WKDETAIL")
+            collection2.deleteMany(Filters.in("offerNumber", offerNumbers))
+            val collection3: MongoCollection[Document] = mongoConf.database.getCollection("F9S_DSBD_EVNTLOG")
+            collection3.deleteMany(Filters.in("offerNumber", offerNumbers))
+
+            F9S_DSBD_SUM(spark, a, b, c, currentWk).append_dsbd_sum(userId)
+            F9S_DSBD_WKDETAIL(spark, a, b, c).append_dsbd_wkdetail(offerNumbers)
+            F9S_DSBD_EVNTLOG(spark, a, b, c, currentWk).append_dsbd_evntlog(offerNumbers)
+
+            val collection4: MongoCollection[Document] = mongoConf.database.getCollection("F9S_DSBD_RTELIST")
+            collection4.deleteMany(Filters.in("userId", userId))
+            val collection5: MongoCollection[Document] = mongoConf.database.getCollection("F9S_DSBD_WKLIST")
+            collection5.deleteMany(Filters.in("userId", userId))
+
+            F9S_DSBD_RTELIST(spark, a, b, c).append_dsbd_rtelist(userId)
+            F9S_DSBD_WKLIST(spark, a, b, c) append_dsbd_wklist (userId)
 
 
-    ///////////////////////////CDC - DATA LAKE////////////////////////////////////
-    val list2chk = List("FTR_OFER", "FTR_OFER_RTE", "FTR_OFER_LINE_ITEM", "FTR_OFER_CRYR", "FTR_DEAL", "FTR_DEAL_LINE_ITEM", "FTR_DEAL_CRYR", "FTR_DEAL_RTE", "FTR_DEAL_RSLT")
-
-    //JDBC SESSION//
-    val prop = new Properties()
-    prop.put("user", "ftradm")
-    prop.put("password", "12345678")
-    val url = "jdbc:mysql://opus365-dev01.cbqbqnguxslu.ap-northeast-2.rds.amazonaws.com:3306"
-
-    var jobTarget = ListBuffer[Int]()
-    if (runMode != "coldRun") {
-      // DB Index
-      val idTrade = new ListBuffer[Int]()
-      for (i <- list2chk.indices) {
-        val ID = spark.read.jdbc(url, "ftr." + list2chk(i), prop)
-          .select("ID").groupBy().agg(max("ID").as("ID")).collect
-          .mkString("").replace("[", "").replace("]", "").toInt
-        println(ID) //logger
-        idTrade += ID
+            println("/////////////////////Job " + i.toString + " Finished//////////////////////")
+            i += 1
+          }
       }
+      else //// get and main all database in case of service's COLD RUN
+      {
+        CDC_SVC(spark, i, a, b, c, currentWk).update_Origin(list2chk(0), 0)
+        //////////////////////////////////F9STATS UPDATE START////////////////////////////////
+        F9S_DSBD_RAW(spark, a, b, c).dsbd_raw()
+        F9S_DSBD_SUM(spark, a, b, c, currentWk).dsbd_sum()
+        F9S_DSBD_WKDETAIL(spark, a, b, c).dsbd_wkdetail()
+        F9S_DSBD_EVNTLOG(spark, a, b, c, currentWk).dsbd_evntlog()
+        F9S_DSBD_RTELIST(spark, a, b, c).dsbd_rtelist()
+        F9S_DSBD_WKLIST(spark, a, b, c).dsbd_wklist()
 
-      // DATA LAKE Index
-      val idf9s = new ListBuffer[Int]()
-      for (i <- list2chk.indices) {
-        val ID = spark.read.parquet(a + list2chk(i))
-          .select("ID").groupBy().agg(max("ID").as("ID")).collect
-          .mkString("").replace("[", "").replace("]", "").toInt
-        println(ID) //LOGGER
-        idf9s += ID
+        F9S_STATS_RAW(spark, a, b, c).stats_raw()
+        F9S_MW_SUM(spark, a, b, c, currentWk).mw_sum()
+        F9S_MW_HST(spark, a, b, c).mw_hst()
+        F9S_MW_WKDETAIL(spark, a, b, c).mw_wkdetail()
+        F9S_MW_BIDASK(spark, a, b, c).mw_bidask()
+        F9S_MI_SUM(spark, a, b, c).mi_sum()
+        F9S_IDX_LST(spark, b, c).idx_lst()
+        println("/////////////////////Job " + i.toString + " Finished//////////////////////")
+        i += 1
       }
-      // job Target ------ choose right runMode according to cold run or not
-      jobTarget = (idTrade, idf9s).zipped.map((x, y) => x - y)
     }
-
-    // Update Origin Source
-    if (runMode == "coldRun") {
-      val list2chk2 = List("MDM_CRYR", "MDM_PORT", "FTR_OFER", "FTR_OFER_RTE", "FTR_OFER_LINE_ITEM", "FTR_OFER_CRYR", "FTR_DEAL", "FTR_DEAL_LINE_ITEM", "FTR_DEAL_CRYR", "FTR_DEAL_RTE", "FTR_DEAL_RSLT")
-      for (i <- list2chk2.indices) {
-        spark.read.jdbc(url, "ftr." + list2chk2(i), prop).write.mode("overwrite").parquet(a + list2chk2(i))
-      }
-    }
-    else {
-      for (i <- list2chk.indices) {
-        if (jobTarget(i) != 0) {
-          var updater = spark.read.jdbc(url, "ftr." + list2chk(i), prop).filter(col("ID") > jobTarget(i))
-          updater.write.mode("append").parquet(a + list2chk(i))
-        } else {
-          println("JOB SKIPPED " + list2chk(i))
-        }
-      }
-    }
-
-    //////////////////////////////////F9STATS UPDATE START////////////////////////////////
-
-    F9S_DSBD_RAW(spark, a, b, c).dsbd_raw()
-    F9S_DSBD_RTELIST(spark, a, b, c).dsbd_rtelist()
-    F9S_DSBD_WKLIST(spark, a, b, c).dsbd_wklist()
-    F9S_DSBD_SUM(spark, a, b, c, currentWk).dsbd_sum()
-    F9S_DSBD_WKDETAIL(spark, a, b, c).dsbd_wkdetail()
-    F9S_DSBD_EVNTLOG(spark, a, b, c, currentWk).dsbd_evntlog()
-    F9S_STATS_RAW(spark, a, b, c).stats_raw()
-
-    F9S_MW_SUM(spark, a, b, c, currentWk).mw_sum()
-    F9S_MW_HST(spark, a, b, c).mw_hst()
-    F9S_MW_WKDETAIL(spark, a, b, c).mw_wkdetail()
-    F9S_MW_BIDASK(spark, a, b, c).mw_bidask()
-    F9S_MI_SUM(spark, a, b, c).mi_sum()
-    F9S_IDX_LST(spark, b, c).idx_lst()
-
 
   }
+
 }

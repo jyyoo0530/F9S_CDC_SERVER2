@@ -46,7 +46,7 @@ case class CDC_SVC(var spark: SparkSession,
       // DATA LAKE Index
 
       for (i <- list2chk.indices) {
-        val ID = spark.read.parquet(folderOrigin + list2chk(i))
+        val ID = spark.read.parquet(hadoopConf.hadoopPath + list2chk(i))
           .select("ID").groupBy().agg(max("ID").as("ID")).collect
           .mkString("").replace("[", "").replace("]", "").toInt
         idf9s += ID
@@ -65,7 +65,7 @@ case class CDC_SVC(var spark: SparkSession,
       {
         val list2chk2 = list2chk ::: List("MDM_PORT", "MDM_CRYR")
         for (i <- list2chk2.indices) {
-          spark.read.jdbc(jdbcConf.url, "ftr." + list2chk2(i), jdbcConf.prop).write.mode("overwrite").parquet(folderOrigin + list2chk2(i))
+          spark.read.jdbc(jdbcConf.url, "ftr." + list2chk2(i), jdbcConf.prop).write.mode("overwrite").parquet(hadoopConf.hadoopPath + list2chk2(i))
         }
         val readResult = spark.emptyDataFrame
         return readResult
@@ -75,7 +75,7 @@ case class CDC_SVC(var spark: SparkSession,
         if (targetIdx != 0) {
           val readResult = spark.read.jdbc(jdbcConf.url, "ftr." + jobTarget, jdbcConf.prop).filter(col("ID") > targetIdx)
           //          spark.read.jdbc(url, "ftr." + jobTarget,prop).write.mode("overwrite").parquet(folderOrigin+jobTarget)
-          readResult.write.mode("append").parquet(folderOrigin + jobTarget)
+          readResult.write.mode("append").parquet(hadoopConf.hadoopPath + jobTarget)
           println("Updated " + jobTarget + "with following numbers of rows:") //logger
           println(targetIdx) //logger
           return readResult

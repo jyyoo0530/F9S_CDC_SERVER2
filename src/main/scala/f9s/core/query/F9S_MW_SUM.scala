@@ -1,6 +1,7 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
+import f9s.{hadoopConf, mongoConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
@@ -9,8 +10,8 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
                       var pathParquetSave: String, var pathJsonSave: String, var currentWk: String) {
   def mw_sum(): Unit = {
     println("////////////////////////////////MW SUM: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
-    lazy val F9S_STATS_RAW = spark.read.parquet(pathParquetSave + "/F9S_STATS_RAW")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
 
     lazy val srcAgged = FTR_DEAL.filter(col("OFER_TP_CD") === "S").select(
       col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -89,7 +90,8 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
     //        F9S_MW_SUM.repartition(5).write.mode("append").json(pathJsonSave + "/F9S_MW_SUM")
     //    F9S_MW_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_MW_SUM")
     MongoSpark.save(F9S_MW_SUM.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_MW_SUM").mode("overwrite"))
     F9S_MW_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
@@ -97,8 +99,8 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
 
   def append_mw_sum(): Unit = {
     println("////////////////////////////////MW SUM: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
-    lazy val F9S_STATS_RAW = spark.read.parquet(pathParquetSave + "/F9S_STATS_RAW")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
 
     lazy val srcAgged = FTR_DEAL.filter(col("OFER_TP_CD") === "S").select(
       col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -177,8 +179,9 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
     //        F9S_MW_SUM.repartition(5).write.mode("append").json(pathJsonSave + "/F9S_MW_SUM")
     //    F9S_MW_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_MW_SUM")
     MongoSpark.save(F9S_MW_SUM.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
-      .option("collection", "F9S_MW_SUM").mode("overwrite"))
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
+      .option("collection", "F9S_MW_SUM").mode("append"))
     F9S_MW_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

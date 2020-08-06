@@ -2,6 +2,7 @@ package f9s.core.query
 
 
 import com.mongodb.spark.MongoSpark
+import f9s.{hadoopConf, mongoConf}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
@@ -11,10 +12,10 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
     println("////////////////////////////////DSBD WKDETAIL: JOB STARTED////////////////////////////////////////")
     lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(pathSourceFrom + "/weektable.csv")
       .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String")).withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000"))).drop("yyyymmdd")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
       .select("DEAL_DT", "DEAL_NR", "DEAL_CHNG_SEQ", "OFER_NR", "OFER_CHNG_SEQ")
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ") + 1).drop("OFER_CHNG_SEQ")
-    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(pathSourceFrom + "/FTR_OFER_LINE_ITEM")
+    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ"))
       .join(FTR_DEAL, Seq("OFER_NR", "offerChangeSeq_forjoin"), "left").drop("offerChangeSeq_forjoin")
       .join(weektable, Seq("BSE_YW"), "left")
@@ -77,7 +78,8 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
     //    F9S_DSBD_WKDETAIL.write.mode("append").parquet(pathParquetSave + "/F9S_DSBD_WKDETAIL")
 
     MongoSpark.save(F9S_DSBD_WKDETAIL.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_DSBD_WKDETAIL").mode("overwrite"))
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
@@ -86,11 +88,11 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
     println("////////////////////////////////DSBD WKDETAIL: JOB STARTED////////////////////////////////////////")
     lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(pathSourceFrom + "/weektable.csv")
       .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String")).withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000"))).drop("yyyymmdd")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom+"/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath+"/FTR_DEAL")
       .filter(col("OFER_NR") isin (offerNumbers:_*))
       .select("DEAL_DT", "DEAL_NR", "DEAL_CHNG_SEQ", "OFER_NR", "OFER_CHNG_SEQ")
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ") + 1).drop("OFER_CHNG_SEQ")
-    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(pathSourceFrom+"/FTR_OFER_LINE_ITEM")
+    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath+"/FTR_OFER_LINE_ITEM")
       .filter(col("OFER_NR") isin (offerNumbers:_*))
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ"))
       .join(FTR_DEAL, Seq("OFER_NR", "offerChangeSeq_forjoin"), "left").drop("offerChangeSeq_forjoin")
@@ -154,7 +156,8 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
     //    F9S_DSBD_WKDETAIL.write.mode("append").parquet(pathParquetSave + "/F9S_DSBD_WKDETAIL")
 
     MongoSpark.save(F9S_DSBD_WKDETAIL.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_DSBD_WKDETAIL").mode("append"))
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

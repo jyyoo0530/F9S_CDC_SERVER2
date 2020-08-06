@@ -1,6 +1,7 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
+import f9s.{hadoopConf, mongoConf}
 import org.apache.avro.generic.GenericData.StringType
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.expressions.Window
@@ -12,13 +13,13 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
                             var pathParquetSave: String, var pathJsonSave: String, var currentWk: String) {
   def dsbd_evntlog(): Unit = {
     println("////////////////////////////////DSBD EVENTLOG: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_OFER = spark.read.parquet(pathSourceFrom + "/FTR_OFER")
-    //    lazy val FTR_DEAL_RSLT = spark.read.parquet(pathSourceFrom+"/FTR_DEAL_RSLT")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
+    lazy val FTR_OFER = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
+    //    lazy val FTR_DEAL_RSLT = spark.read.parquet(hadoopConf.hadoopPath+"/FTR_DEAL_RSLT")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
     lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(pathSourceFrom + "/weektable.csv")
       .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String")).withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000"))).drop("yyyymmdd")
 
-    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(pathSourceFrom + "/FTR_OFER_LINE_ITEM")
+    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
       .join(FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT", "OFER_NR", "OFER_CHNG_SEQ"),
         Seq("OFER_NR", "OFER_CHNG_SEQ"), "left")
       .join(FTR_OFER.select("OFER_NR", "OFER_CHNG_SEQ", "OFER_DT", "OFER_TP_CD", "ALL_YN"),
@@ -299,7 +300,8 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
     //    F9S_DSBD_EVNTLOG.write.mode("append").parquet(pathParquetSave+"/F9S_DSBD_EVNTLOG")
 
     MongoSpark.save(F9S_DSBD_EVNTLOG.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_DSBD_EVNTLOG").mode("overwrite"))
 
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
@@ -307,15 +309,15 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
 
   def append_dsbd_evntlog(offerNumbers:Seq[String]): Unit = {
     println("////////////////////////////////DSBD EVENTLOG: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_OFER = spark.read.parquet(pathSourceFrom + "/FTR_OFER")
+    lazy val FTR_OFER = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
       .filter(col("OFER_NR") isin (offerNumbers:_*))
-    //    lazy val FTR_DEAL_RSLT = spark.read.parquet(pathSourceFrom+"/FTR_DEAL_RSLT")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
+    //    lazy val FTR_DEAL_RSLT = spark.read.parquet(hadoopConf.hadoopPath+"/FTR_DEAL_RSLT")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
       .filter(col("OFER_NR") isin (offerNumbers:_*))
     lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(pathSourceFrom + "/weektable.csv")
       .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String")).withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000"))).drop("yyyymmdd")
 
-    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(pathSourceFrom + "/FTR_OFER_LINE_ITEM")
+    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
       .join(FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT", "OFER_NR", "OFER_CHNG_SEQ"),
         Seq("OFER_NR", "OFER_CHNG_SEQ"), "left")
       .join(FTR_OFER.select("OFER_NR", "OFER_CHNG_SEQ", "OFER_DT", "OFER_TP_CD", "ALL_YN"),
@@ -595,7 +597,8 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var pathSourceFrom: String,
     //    F9S_DSBD_EVNTLOG.write.mode("append").parquet(pathParquetSave+"/F9S_DSBD_EVNTLOG")
 
     MongoSpark.save(F9S_DSBD_EVNTLOG.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_DSBD_EVNTLOG").mode("append"))
 
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

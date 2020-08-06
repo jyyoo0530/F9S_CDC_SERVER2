@@ -3,6 +3,7 @@ package f9s.core.query
 import com.mongodb.spark.MongoSpark
 import com.mongodb.spark._
 import com.mongodb.spark.config._
+import f9s.{hadoopConf, mongoConf}
 import org.bson.Document
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.functions._
@@ -11,9 +12,9 @@ case class F9S_DSBD_RTELIST(var spark: SparkSession, var pathSourceFrom: String,
                             var pathParquetSave: String, var pathJsonSave: String) {
   def dsbd_rtelist(): Unit = {
     println("////////////////////////////////DSBD RTELIST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_OFER = spark.read.parquet(pathSourceFrom + "/FTR_OFER")
-    lazy val FTR_OFER_RTE = spark.read.parquet(pathSourceFrom + "/FTR_OFER_RTE")
-    lazy val MDM_PORT = spark.read.parquet(pathSourceFrom + "/MDM_PORT")
+    lazy val FTR_OFER = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
+    lazy val FTR_OFER_RTE = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_RTE")
+    lazy val MDM_PORT = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_PORT")
 
     lazy val srcMdmPort = MDM_PORT.select(col("locCd"), col("locNm")).distinct
     lazy val srcOfer = FTR_OFER.select(
@@ -57,20 +58,21 @@ case class F9S_DSBD_RTELIST(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_DSBD_RTELIST.write.mode("overwrite").parquet(pathParquetSave + "/F9S_DSBD_RTELIST")
     MongoSpark.save(F9S_DSBD_RTELIST.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_DSBD_RTELIST").mode("overwrite"))
     F9S_DSBD_RTELIST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 
-  def append_dsbd_rtelist(userId:Seq[String]): Unit = {
+  def append_dsbd_rtelist(userId: Seq[String]): Unit = {
     println("////////////////////////////////DSBD RTELIST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_OFER = spark.read.parquet(pathSourceFrom + "/FTR_OFER")
-      .filter(col("EMP_NR") isin (userId:_*))
+    lazy val FTR_OFER = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
+      .filter(col("EMP_NR") isin (userId: _*))
     lazy val offerList = FTR_OFER.select("OFER_NR").rdd.map(r => r(0).asInstanceOf[String].split("\\|").map(_.toString).distinct).collect().flatten.toSeq
-    lazy val FTR_OFER_RTE = spark.read.parquet(pathSourceFrom + "/FTR_OFER_RTE")
-      .filter(col("OFER_NR") isin (offerList:_*))
-    lazy val MDM_PORT = spark.read.parquet(pathSourceFrom + "/MDM_PORT")
+    lazy val FTR_OFER_RTE = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_RTE")
+      .filter(col("OFER_NR") isin (offerList: _*))
+    lazy val MDM_PORT = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_PORT")
 
     lazy val srcMdmPort = MDM_PORT.select(col("locCd"), col("locNm")).distinct
     lazy val srcOfer = FTR_OFER.select(
@@ -112,9 +114,10 @@ case class F9S_DSBD_RTELIST(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_DSBD_RTELIST.repartition(1).write.mode("overwrite").json(pathJsonSave + "/F9S_DSBD_RTELIST")
 
-    //    F9S_DSBD_RTELIST.write.mode("overwrite").parquet(pathParquetSave + "/F9S_DSBD_RTELIST")
+    //    F9S_DSBD_RTELIST.write.mode("overwrite").parquet(hadoopConf.hadoopPath + "/F9S_DSBD_RTELIST")
     MongoSpark.save(F9S_DSBD_RTELIST.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_DSBD_RTELIST").mode("append"))
     F9S_DSBD_RTELIST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

@@ -3,11 +3,7 @@
     <CLASSES>
       <root url="jar://$USER_HOME$/.cache/coursier/v1/https/repo1.maven.org/maven2/io/lettuce/lettuce-core/5.3.2.RELEASE/lettuce-core-5.3.2.RELEASE.jar!/" />
     </CLASSES>
-    <JAVADOC>
-      <root url="jar://$USER_HOME$/.cache/coursier/v1/https/repo1.maven.org/maven2/io/lettuce/lettuce-core/5.3.2.RELEASE/lettuce-core-5.3.2.RELEASE-javadoc.jar!/" />
-    </JAVADOC>
-    <SOURCES>
-      <root url="jar://$USER_HOME$/.cache/coursier/v1/https/repo1.maven.org/maven2/io/lettuce/lettuce-core/5.3.2.RELEASE/lettuce-core-5.3.2.RELEASE-sources.jar!/" />
-    </SOURCES>
+    <JAVADOC />
+    <SOURCES />
   </library>
 </component>

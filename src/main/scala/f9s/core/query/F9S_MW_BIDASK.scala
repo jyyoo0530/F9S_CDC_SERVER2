@@ -1,6 +1,7 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
+import f9s.{hadoopConf, mongoConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
@@ -9,12 +10,12 @@ case class F9S_MW_BIDASK(var spark: SparkSession, var pathSourceFrom: String,
                          var pathParquetSave: String, var pathJsonSave: String) {
   def mw_bidask(): Unit = {
     println("////////////////////////////////MW BIDASK: JOB STARTED////////////////////////////////////////")
-    val FTR_OFER_CRYR = spark.read.parquet(pathSourceFrom + "/FTR_OFER_CRYR")
-    val FTR_OFER_RTE = spark.read.parquet(pathSourceFrom + "/FTR_OFER_RTE")
-    val FTR_OFER_LINE_ITEM = spark.read.parquet(pathSourceFrom + "/FTR_OFER_LINE_ITEM")
-    val FTR_OFER = spark.read.parquet(pathSourceFrom + "/FTR_OFER")
-    val MDM_PORT = spark.read.parquet(pathSourceFrom + "/MDM_PORT")
-    // val MDM_CRYR = spark.read.parquet(folderOrigin+"/MDM_CRYR")
+    val FTR_OFER_CRYR = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_CRYR")
+    val FTR_OFER_RTE = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_RTE")
+    val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
+    val FTR_OFER = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
+    val MDM_PORT = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_PORT")
+    // val MDM_CRYR = spark.read.parquet(hadoopConf.hadoopPath+"/MDM_CRYR")
     lazy val leftJoinSeq1 = Seq("tradeOfferNumber", "tradeOfferChangeSeq")
     lazy val filterSeq = FTR_OFER.groupBy("OFER_NR").agg(max("OFER_CHNG_SEQ").as("OFER_CHNG_SEQ"))
 
@@ -82,19 +83,20 @@ case class F9S_MW_BIDASK(var spark: SparkSession, var pathSourceFrom: String,
     //    F9S_MW_BIDASK.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_BIDASK")
     //    F9S_MW_BIDASK.write.mode("append").parquet(pathParquetSave + "/F9S_MW_BIDASK")
     MongoSpark.save(F9S_MW_BIDASK.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
-      .option("collection", "F9S_MW_BIDASK").mode("overwrite"))
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
+      .option("collection", "F9S_MW_BIDASK").mode("append"))
     F9S_MW_BIDASK.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
   def append_mw_bidask(): Unit = {
     println("////////////////////////////////MW BIDASK: JOB STARTED////////////////////////////////////////")
-    val FTR_OFER_CRYR = spark.read.parquet(pathSourceFrom + "/FTR_OFER_CRYR")
-    val FTR_OFER_RTE = spark.read.parquet(pathSourceFrom + "/FTR_OFER_RTE")
-    val FTR_OFER_LINE_ITEM = spark.read.parquet(pathSourceFrom + "/FTR_OFER_LINE_ITEM")
-    val FTR_OFER = spark.read.parquet(pathSourceFrom + "/FTR_OFER")
-    val MDM_PORT = spark.read.parquet(pathSourceFrom + "/MDM_PORT")
-    // val MDM_CRYR = spark.read.parquet(folderOrigin+"/MDM_CRYR")
+    val FTR_OFER_CRYR = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_CRYR")
+    val FTR_OFER_RTE = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_RTE")
+    val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
+    val FTR_OFER = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
+    val MDM_PORT = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_PORT")
+    // val MDM_CRYR = spark.read.parquet(hadoopConf.hadoopPath+"/MDM_CRYR")
     lazy val leftJoinSeq1 = Seq("tradeOfferNumber", "tradeOfferChangeSeq")
     lazy val filterSeq = FTR_OFER.groupBy("OFER_NR").agg(max("OFER_CHNG_SEQ").as("OFER_CHNG_SEQ"))
 
@@ -162,7 +164,8 @@ case class F9S_MW_BIDASK(var spark: SparkSession, var pathSourceFrom: String,
     //    F9S_MW_BIDASK.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MW_BIDASK")
     //    F9S_MW_BIDASK.write.mode("append").parquet(pathParquetSave + "/F9S_MW_BIDASK")
     MongoSpark.save(F9S_MW_BIDASK.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_MW_BIDASK").mode("overwrite"))
     F9S_MW_BIDASK.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

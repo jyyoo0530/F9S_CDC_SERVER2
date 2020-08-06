@@ -1,6 +1,7 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
+import f9s.{hadoopConf, mongoConf}
 import org.apache.parquet.format.IntType
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
@@ -47,9 +48,10 @@ case class F9S_MI_SUM(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_MI_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MI_SUM")
 
-    F9S_MI_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_MI_SUM")
+    F9S_MI_SUM.write.mode("append").parquet(hadoopConf.hadoopPath + "/F9S_MI_SUM")
     MongoSpark.save(F9S_MI_SUM.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_MI_SUM").mode("overwrite"))
     F9S_MI_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
@@ -93,9 +95,10 @@ case class F9S_MI_SUM(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_MI_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MI_SUM")
 
-    F9S_MI_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_MI_SUM")
+    F9S_MI_SUM.write.mode("append").parquet(hadoopConf.hadoopPath + "/F9S_MI_SUM")
     MongoSpark.save(F9S_MI_SUM.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_MI_SUM").mode("overwrite"))
     F9S_MI_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

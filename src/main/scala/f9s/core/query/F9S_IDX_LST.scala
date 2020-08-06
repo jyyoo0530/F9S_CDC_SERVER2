@@ -1,6 +1,7 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
+import f9s.{hadoopConf, mongoConf}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -8,8 +9,8 @@ import org.apache.spark.sql.types._
 case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var pathJsonSave: String) {
   def idx_lst(): Unit = {
     println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
-    val F9S_MI_SUM = spark.read.parquet(pathParquetSave + "/F9S_MI_SUM")
-    val F9S_MW_WKDETAIL = spark.read.parquet(pathParquetSave + "/F9S_MW_WKDETAIL").select("interval")
+    val F9S_MI_SUM = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MI_SUM")
+    val F9S_MW_WKDETAIL = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MW_WKDETAIL").select("interval")
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
       StructField("interval", StringType, nullable = false)
@@ -51,7 +52,8 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
     //    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_IDX_LST")
     //        F9S_IDX_LST.write.mode("overwrite").parquet(pathParquetSave+"/F9S_IDX_LST")
     MongoSpark.save(F9S_IDX_LST.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_IDX_LST").mode("overwrite"))
     F9S_IDX_LST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
@@ -59,8 +61,8 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
 
   def append_idx_lst(): Unit = {
     println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
-    val F9S_MI_SUM = spark.read.parquet(pathParquetSave + "/F9S_MI_SUM")
-    val F9S_MW_WKDETAIL = spark.read.parquet(pathParquetSave + "/F9S_MW_WKDETAIL").select("interval")
+    val F9S_MI_SUM = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MI_SUM")
+    val F9S_MW_WKDETAIL = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MW_WKDETAIL").select("interval")
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
       StructField("interval", StringType, nullable = false)
@@ -102,7 +104,8 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
     //    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_IDX_LST")
     //        F9S_IDX_LST.write.mode("overwrite").parquet(pathParquetSave+"/F9S_IDX_LST")
     MongoSpark.save(F9S_IDX_LST.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_IDX_LST").mode("overwrite"))
     F9S_IDX_LST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

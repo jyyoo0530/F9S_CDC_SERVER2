@@ -1,6 +1,7 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
+import f9s.{hadoopConf, mongoConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
@@ -10,7 +11,7 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
                       var pathParquetSave: String, var pathJsonSave: String) {
   def mw_hst(): Unit = {
     println("////////////////////////////////MW HST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
       .select(col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
         col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -18,7 +19,7 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
         col("OFER_RD_TRM_CD").as("rdTermCode"),
         col("DEAL_DT").as("timestamp")
       ).distinct
-    lazy val F9S_STATS_RAW = spark.read.parquet(pathParquetSave + "/F9S_STATS_RAW")
+    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
       .select(
         col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
@@ -55,7 +56,8 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_MW_HST.write.mode("append").parquet(pathParquetSave+"/F9S_MW_HST")
     MongoSpark.save(F9S_MW_HST.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
       .option("collection", "F9S_MW_HST").mode("overwrite"))
     F9S_MW_HST.printSchema
 
@@ -64,7 +66,7 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
 
   def append_mw_hst(): Unit = {
     println("////////////////////////////////MW HST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(pathSourceFrom + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
       .select(col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
         col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -72,7 +74,7 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
         col("OFER_RD_TRM_CD").as("rdTermCode"),
         col("DEAL_DT").as("timestamp")
       ).distinct
-    lazy val F9S_STATS_RAW = spark.read.parquet(pathParquetSave + "/F9S_STATS_RAW")
+    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
       .select(
         col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
@@ -109,8 +111,9 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
 
     //    F9S_MW_HST.write.mode("append").parquet(pathParquetSave+"/F9S_MW_HST")
     MongoSpark.save(F9S_MW_HST.write
-      .option("uri", "mongodb://ec2-13-209-15-68.ap-northeast-2.compute.amazonaws.com:27017/f9s")
-      .option("collection", "F9S_MW_HST").mode("overwrite"))
+      .option("uri", mongoConf.sparkMongoUri)
+      .option("database", "f9s")
+      .option("collection", "F9S_MW_HST").mode("append"))
     F9S_MW_HST.printSchema
 
     println("/////////////////////////////JOB FINISHED//////////////////////////////")

@@ -1,17 +1,22 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
-import f9s.{hadoopConf, mongoConf}
+import f9s.{appConf, hadoopConf, mongoConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
 
-case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
-                           var pathParquetSave: String, var pathJsonSave: String) {
+case class F9S_MW_WKDETAIL(var spark: SparkSession) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def mw_wkdetail(): Unit = {
     println("////////////////////////////////MW WKDETAIL: JOB STARTED////////////////////////////////////////")
 
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
       .select(col("DEAL_NR").as("dealNumber"),
         col("DEAL_CHNG_SEQ").as("dealChangeSeq"),
         col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -19,7 +24,7 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
         col("OFER_RD_TRM_CD").as("rdTermCode"),
         col("DEAL_DT").as("timestamp")
       )
-    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    lazy val F9S_STATS_RAW = spark.read.parquet(filePath + "/F9S_STATS_RAW")
       .select(
         col("DEAL_NR").as("dealNumber"),
         col("DEAL_CHNG_SEQ").as("dealChangeSeq"),
@@ -200,7 +205,7 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
     //      F9S_MW_WKDETAIL.repartition(1).drop("rte_idx","writeIdx")
     //        .write.mode("append").json(pathJsonSave+"/F9S_MW_WKDETAIL")
 
-    F9S_MW_WKDETAIL.write.mode("append").parquet(hadoopConf.hadoopPath + "/F9S_MW_WKDETAIL")
+    F9S_MW_WKDETAIL.write.mode("overwrite").parquet(filePath + "/F9S_MW_WKDETAIL")
     F9S_MW_WKDETAIL.printSchema
     //        F9S_MW_WKDETAIL.repartition(50).write.mode("append").json(pathJsonSave + "/F9S_MW_WKDETAIL")
 
@@ -214,7 +219,7 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
   def append_mw_wkdetail(): Unit = {
     println("////////////////////////////////MW WKDETAIL: JOB STARTED////////////////////////////////////////")
 
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
       .select(col("DEAL_NR").as("dealNumber"),
         col("DEAL_CHNG_SEQ").as("dealChangeSeq"),
         col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -222,7 +227,7 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
         col("OFER_RD_TRM_CD").as("rdTermCode"),
         col("DEAL_DT").as("timestamp")
       )
-    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    lazy val F9S_STATS_RAW = spark.read.parquet(filePath + "/F9S_STATS_RAW")
       .select(
         col("DEAL_NR").as("dealNumber"),
         col("DEAL_CHNG_SEQ").as("dealChangeSeq"),
@@ -389,7 +394,8 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
         .withColumn("changeRate", col("changeValue").divide(col("close")))
         .distinct.drop("laggedPrice")
 
-    val F9S_MW_WKDETAIL = src01.union(src02).union(src03).groupBy(col("marketTypeCode"),
+    val F9S_MW_WKDETAIL = src01.union(src02).union(src03).groupBy(
+      col("marketTypeCode"),
       col("rdTermCode"),
       col("containerTypeCode"),
       col("paymentTermCode"),
@@ -397,13 +403,14 @@ case class F9S_MW_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String,
       col("podCode"),
       col("qtyUnit"),
       col("baseYearWeek"),
-      col("interval"))
+      col("interval")
+    )
       .agg(collect_set(struct("xAxis", "intervalTimestamp", "open", "low", "high", "close", "volume", "changeValue", "changeRate")).as("Cell"))
 
     //      F9S_MW_WKDETAIL.repartition(1).drop("rte_idx","writeIdx")
     //        .write.mode("append").json(pathJsonSave+"/F9S_MW_WKDETAIL")
 
-    F9S_MW_WKDETAIL.write.mode("append").parquet(hadoopConf.hadoopPath + "/F9S_MW_WKDETAIL")
+    F9S_MW_WKDETAIL.write.mode("append").parquet(filePath + "/F9S_MW_WKDETAIL")
     F9S_MW_WKDETAIL.printSchema
     //        F9S_MW_WKDETAIL.repartition(50).write.mode("append").json(pathJsonSave + "/F9S_MW_WKDETAIL")
 

@@ -1,17 +1,22 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
-import f9s.{hadoopConf, mongoConf}
+import f9s.{appConf, hadoopConf, mongoConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
 
-case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
-                      var pathParquetSave: String, var pathJsonSave: String, var currentWk: String) {
+case class F9S_MW_SUM(var spark: SparkSession, var currentWk: String) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def mw_sum(): Unit = {
     println("////////////////////////////////MW SUM: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
-    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
+    lazy val F9S_STATS_RAW = spark.read.parquet(filePath + "/F9S_STATS_RAW")
 
     lazy val srcAgged = FTR_DEAL.filter(col("OFER_TP_CD") === "S").select(
       col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -99,8 +104,8 @@ case class F9S_MW_SUM(var spark: SparkSession, var pathSourceFrom: String,
 
   def append_mw_sum(): Unit = {
     println("////////////////////////////////MW SUM: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
-    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
+    lazy val F9S_STATS_RAW = spark.read.parquet(filePath + "/F9S_STATS_RAW")
 
     lazy val srcAgged = FTR_DEAL.filter(col("OFER_TP_CD") === "S").select(
       col("TRDE_MKT_TP_CD").as("marketTypeCode"),

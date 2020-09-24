@@ -2,16 +2,22 @@ package f9s.core.query
 
 
 import com.mongodb.spark.MongoSpark
-import f9s.{hadoopConf, mongoConf}
+import f9s.{appConf, hadoopConf, mongoConf}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
 
-case class F9S_DSBD_WKLIST(var spark: SparkSession, var pathSourceFrom: String, var pathParquetSave: String, var pathJsonSave: String) {
+case class F9S_DSBD_WKLIST(var spark: SparkSession) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def dsbd_wklist(): Unit = {
     println("////////////////////////////////DSBD WKLIST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_OFER: DataFrame = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
-    lazy val FTR_OFER_RTE: DataFrame = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_RTE")
-    lazy val FTR_OFER_LINE_ITEM: DataFrame = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
+    lazy val FTR_OFER: DataFrame = spark.read.parquet(filePath + "/FTR_OFER")
+    lazy val FTR_OFER_RTE: DataFrame = spark.read.parquet(filePath + "/FTR_OFER_RTE")
+    lazy val FTR_OFER_LINE_ITEM: DataFrame = spark.read.parquet(filePath + "/FTR_OFER_LINE_ITEM")
 
     lazy val polRte: DataFrame = FTR_OFER_RTE.filter(col("TRDE_LOC_TP_CD") === "02").select("TRDE_LOC_CD", "OFER_CHNG_SEQ", "OFER_NR", "OFER_REG_SEQ").withColumn("polCode", col("TRDE_LOC_CD")).drop("TRDE_LOC_CD")
     lazy val podRte: DataFrame = FTR_OFER_RTE.filter(col("TRDE_LOC_TP_CD") === "03").select("TRDE_LOC_CD", "OFER_CHNG_SEQ", "OFER_NR", "OFER_REG_SEQ").withColumn("podCode", col("TRDE_LOC_CD")).drop("TRDE_LOC_CD")
@@ -49,12 +55,12 @@ case class F9S_DSBD_WKLIST(var spark: SparkSession, var pathSourceFrom: String, 
 
   def append_dsbd_wklist(userId:Seq[String]): Unit = {
     println("////////////////////////////////DSBD WKLIST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_OFER: DataFrame = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER")
+    lazy val FTR_OFER: DataFrame = spark.read.parquet(filePath + "/FTR_OFER")
       .filter(col("EMP_NR") isin (userId:_*))
     lazy val offerList = FTR_OFER.select("OFER_NR").rdd.map(r => r(0).asInstanceOf[String].split("\\|").map(_.toString).distinct).collect().flatten.toSeq
-    lazy val FTR_OFER_RTE: DataFrame = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_RTE")
+    lazy val FTR_OFER_RTE: DataFrame = spark.read.parquet(filePath + "/FTR_OFER_RTE")
       .filter(col("OFER_NR") isin (offerList:_*))
-    lazy val FTR_OFER_LINE_ITEM: DataFrame = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
+    lazy val FTR_OFER_LINE_ITEM: DataFrame = spark.read.parquet(filePath + "/FTR_OFER_LINE_ITEM")
       .filter(col("OFER_NR") isin (offerList:_*))
 
     lazy val polRte: DataFrame = FTR_OFER_RTE.filter(col("TRDE_LOC_TP_CD") === "02").select("TRDE_LOC_CD", "OFER_CHNG_SEQ", "OFER_NR", "OFER_REG_SEQ").withColumn("polCode", col("TRDE_LOC_CD")).drop("TRDE_LOC_CD")

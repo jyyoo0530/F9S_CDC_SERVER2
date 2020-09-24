@@ -13,5 +13,9 @@ libraryDependencies ++= Seq(
   "mysql" % "mysql-connector-java" % "8.0.20",
   "org.apache.kafka" % "kafka-clients" % "2.5.0",
   "io.lettuce" % "lettuce-core" % "5.3.2.RELEASE",
-  "io.vertx" % "vertx-stomp" % "3.9.2"
+  "io.vertx" % "vertx-stomp" % "3.9.2",
+  "org.apache.activemq" % "artemis-server" % "2.14.0",
+  "org.apache.activemq" % "artemis-jms-client" % "2.14.0",
+  "org.apache.activemq" % "artemis-commons" % "2.14.0",
+  "org.apache.activemq" % "artemis-core-client" % "2.14.0"
 )

@@ -1,4 +1,5 @@
 package f9s.core
+
 import org.apache.spark.SparkConf
 
 case class sparkConf() {
@@ -11,9 +12,11 @@ case class sparkConf() {
     //      .set("spark.driver.allowMultipleContexts", "false")
     .set("spark.ui.enabled", "true")
     .set("spark.ui.port", "5555")
+    //    .set("spark.speculation","false")
     //      .set("spark.driver.cores", "2")
     //      .set("spark.driver.memory", "12g")
     .set("spark.executor.memoryOverhead", "1g")
+    .set("spark.sql.hive.convertMetastoreParquet", "false")
     //      .set("spark.cores.max", "4")
     //      .set("spark.executor.memory", "10g")
     //      .set("spark.speculation", "true")

@@ -1,21 +1,26 @@
 package f9s.core.query
 
-import f9s.hadoopConf
+import f9s.{appConf, hadoopConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
-case class F9S_STATS_RAW(var spark: SparkSession, var pathSourceFrom: String,
-                         var pathParquetSave: String, var pathJsonSave: String) {
+case class F9S_STATS_RAW(var spark: SparkSession) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def stats_raw(): Unit = {
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
-    lazy val FTR_DEAL_CRYR = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL_CRYR")
-    lazy val FTR_DEAL_RTE = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL_RTE")
-    lazy val FTR_DEAL_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL_LINE_ITEM")
-    lazy val MDM_CRYR = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_CRYR").select("CRYR_CD", "CRYR_NM")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
+    lazy val FTR_DEAL_CRYR = spark.read.parquet(filePath + "/FTR_DEAL_CRYR")
+    lazy val FTR_DEAL_RTE = spark.read.parquet(filePath + "/FTR_DEAL_RTE")
+    lazy val FTR_DEAL_LINE_ITEM = spark.read.parquet(filePath + "/FTR_DEAL_LINE_ITEM")
+    lazy val MDM_CRYR = spark.read.parquet(filePath + "/MDM_CRYR").select("CRYR_CD", "CRYR_NM")
       .withColumn("carrierCode", col("CRYR_CD"))
       .withColumn("carrierName", col("CRYR_NM"))
       .drop("CRYR_CD", "CRYR_NM")
-    lazy val MDM_PORT = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_PORT")
+    lazy val MDM_PORT = spark.read.parquet(filePath + "/MDM_PORT")
 
     lazy val srcIdx = FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT", "OFER_TP_CD").distinct
       .join(FTR_DEAL_LINE_ITEM.select("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW").distinct, Seq("DEAL_NR", "DEAL_CHNG_SEQ"), "left")
@@ -47,20 +52,20 @@ case class F9S_STATS_RAW(var spark: SparkSession, var pathSourceFrom: String,
       .join(srcLineItem, Seq("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW"), "left")
 
     F9S_STATS_RAW.printSchema
-    F9S_STATS_RAW.write.mode("overwrite").parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    F9S_STATS_RAW.write.mode("overwrite").parquet(filePath + "/F9S_STATS_RAW")
 
   }
 
   def append_stats_raw(): Unit = {
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
-    lazy val FTR_DEAL_CRYR = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL_CRYR")
-    lazy val FTR_DEAL_RTE = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL_RTE")
-    lazy val FTR_DEAL_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL_LINE_ITEM")
-    lazy val MDM_CRYR = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_CRYR").select("CRYR_CD", "CRYR_NM")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
+    lazy val FTR_DEAL_CRYR = spark.read.parquet(filePath + "/FTR_DEAL_CRYR")
+    lazy val FTR_DEAL_RTE = spark.read.parquet(filePath  + "/FTR_DEAL_RTE")
+    lazy val FTR_DEAL_LINE_ITEM = spark.read.parquet(filePath  + "/FTR_DEAL_LINE_ITEM")
+    lazy val MDM_CRYR = spark.read.parquet(filePath + "/MDM_CRYR").select("CRYR_CD", "CRYR_NM")
       .withColumn("carrierCode", col("CRYR_CD"))
       .withColumn("carrierName", col("CRYR_NM"))
       .drop("CRYR_CD", "CRYR_NM")
-    lazy val MDM_PORT = spark.read.parquet(hadoopConf.hadoopPath + "/MDM_PORT")
+    lazy val MDM_PORT = spark.read.parquet(filePath + "/MDM_PORT")
 
     lazy val srcIdx = FTR_DEAL.select("DEAL_NR", "DEAL_CHNG_SEQ", "DEAL_DT", "OFER_TP_CD").distinct
       .join(FTR_DEAL_LINE_ITEM.select("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW").distinct, Seq("DEAL_NR", "DEAL_CHNG_SEQ"), "left")
@@ -92,7 +97,7 @@ case class F9S_STATS_RAW(var spark: SparkSession, var pathSourceFrom: String,
       .join(srcLineItem, Seq("DEAL_NR", "DEAL_CHNG_SEQ", "BSE_YW"), "left")
 
     F9S_STATS_RAW.printSchema
-    F9S_STATS_RAW.write.mode("append").parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    F9S_STATS_RAW.write.mode("append").parquet(filePath + "/F9S_STATS_RAW")
 
   }
 }

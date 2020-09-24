@@ -1,17 +1,22 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
-import f9s.{hadoopConf, mongoConf}
+import f9s.{appConf, hadoopConf, mongoConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
 
 
-case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
-                      var pathParquetSave: String, var pathJsonSave: String) {
+case class F9S_MW_HST(var spark: SparkSession) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def mw_hst(): Unit = {
     println("////////////////////////////////MW HST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
       .select(col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
         col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -19,7 +24,7 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
         col("OFER_RD_TRM_CD").as("rdTermCode"),
         col("DEAL_DT").as("timestamp")
       ).distinct
-    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    lazy val F9S_STATS_RAW = spark.read.parquet(filePath + "/F9S_STATS_RAW")
       .select(
         col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
@@ -66,7 +71,7 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
 
   def append_mw_hst(): Unit = {
     println("////////////////////////////////MW HST: JOB STARTED////////////////////////////////////////")
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
       .select(col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),
         col("TRDE_MKT_TP_CD").as("marketTypeCode"),
@@ -74,7 +79,7 @@ case class F9S_MW_HST(var spark: SparkSession, var pathSourceFrom: String,
         col("OFER_RD_TRM_CD").as("rdTermCode"),
         col("DEAL_DT").as("timestamp")
       ).distinct
-    lazy val F9S_STATS_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_STATS_RAW")
+    lazy val F9S_STATS_RAW = spark.read.parquet(filePath + "/F9S_STATS_RAW")
       .select(
         col("DEAL_NR").as("referenceEventNumber"),
         col("DEAL_CHNG_SEQ").as("referenceEventChangeNumber"),

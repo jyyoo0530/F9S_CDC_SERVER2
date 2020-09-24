@@ -1,16 +1,24 @@
 package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
-import f9s.{hadoopConf, mongoConf}
+import f9s.{appConf, hadoopConf, mongoConf}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
-case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var pathJsonSave: String) {
+case class F9S_IDX_LST(var spark: SparkSession) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def idx_lst(): Unit = {
     println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
-    val F9S_MI_SUM = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MI_SUM")
-    val F9S_MW_WKDETAIL = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MW_WKDETAIL").select("interval")
+    val F9S_MI_SUM = spark.read.parquet(filePath + "/F9S_MI_SUM")
+//    F9S_MI_SUM.printSchema()
+//    F9S_MI_SUM.show(10)
+    val F9S_MW_WKDETAIL = spark.read.parquet(filePath + "/F9S_MW_WKDETAIL").select("interval")
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
       StructField("interval", StringType, nullable = false)
@@ -32,7 +40,8 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
     ))
     val intervalDf = spark.createDataFrame(rdd, schema)
 
-    val F9S_IDX_LST = F9S_MI_SUM
+    val F9S_IDX_LST =
+      F9S_MI_SUM
       .join(intervalDf, Seq("interval"), "left")
       .sort(col("intervalSeq").asc).distinct
       .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
@@ -61,8 +70,8 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
 
   def append_idx_lst(): Unit = {
     println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
-    val F9S_MI_SUM = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MI_SUM")
-    val F9S_MW_WKDETAIL = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_MW_WKDETAIL").select("interval")
+    val F9S_MI_SUM = spark.read.parquet(filePath + "/F9S_MI_SUM")
+    val F9S_MW_WKDETAIL = spark.read.parquet(filePath + "/F9S_MW_WKDETAIL").select("interval")
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
       StructField("interval", StringType, nullable = false)
@@ -106,7 +115,7 @@ case class F9S_IDX_LST(var spark: SparkSession, var pathParquetSave: String, var
     MongoSpark.save(F9S_IDX_LST.write
       .option("uri", mongoConf.sparkMongoUri)
       .option("database", "f9s")
-      .option("collection", "F9S_IDX_LST").mode("overwrite"))
+      .option("collection", "F9S_IDX_LST").mode("append"))
     F9S_IDX_LST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }

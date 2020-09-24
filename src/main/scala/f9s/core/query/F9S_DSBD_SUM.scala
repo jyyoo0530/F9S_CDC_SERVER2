@@ -2,16 +2,22 @@ package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.config.WriteConfig
-import f9s.{hadoopConf, mongoConf}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import f9s.{appConf, hadoopConf, mongoConf}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 
-case class F9S_DSBD_SUM(var spark: SparkSession, var pathSourceFrom: String, var pathParquetSave: String, var pathJsonSave: String, var currentWk: String) {
+case class F9S_DSBD_SUM(var spark: SparkSession, var currentWk: String) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def dsbd_sum(): Unit = {
     println("////////////////////////////////DSBD SUM: JOB STARTED////////////////////////////////////////")
-    lazy val F9S_DSBD_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_DSBD_RAW")
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val F9S_DSBD_RAW = spark.read.parquet(filePath + "/F9S_DSBD_RAW")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
       .select(
         col("OFER_NR").as("offerNumber"),
         col("OFER_CHNG_SEQ").plus(lit(1)).as("offerChangeSeq"),
@@ -19,7 +25,6 @@ case class F9S_DSBD_SUM(var spark: SparkSession, var pathSourceFrom: String, var
         col("DEAL_CHNG_SEQ").as("dealChangeSeq"),
         col("DEAL_DT").as("eventTimestamp")
       )
-
     lazy val srcRte = F9S_DSBD_RAW
       .select(col("OFER_NR").as("offerNumber"),
         col("OFER_CHNG_SEQ").as("offerChangeSeq"),
@@ -103,23 +108,27 @@ case class F9S_DSBD_SUM(var spark: SparkSession, var pathSourceFrom: String, var
         "routeItem",
         "carrierItem")).as("cell"))
 
-    //      F9S_DSBD_SUM.repartition(5).write.mode("append").json(pathJsonSave + "/F9S_DSBD_SUM")
-    //    F9S_DSBD_SUM.write.mode("append").parquet(pathParquetSave + "/F9S_DSBD_SUM")
     MongoSpark.save(F9S_DSBD_SUM.write
       .option("uri", mongoConf.sparkMongoUri)
       .option("database", "f9s")
       .option("collection", "F9S_DSBD_SUM").mode("overwrite"))
 
     F9S_DSBD_SUM.printSchema
+
+    val topic_F9S_DSBD_SUM: Dataset[Row] = F9S_DSBD_SUM.select("userId", "offerTypeCode")
+        .distinct
+    for (i <- topic_F9S_DSBD_SUM) {
+      println(i.mkString("."))
+    }
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 
   def append_dsbd_sum(userId: Seq[String]): Unit = {
     println("<------------DSBD SUM: Preplan Making------------->")
-    lazy val F9S_DSBD_RAW = spark.read.parquet(hadoopConf.hadoopPath + "/F9S_DSBD_RAW")
+    lazy val F9S_DSBD_RAW = spark.read.parquet(filePath + "/F9S_DSBD_RAW")
       .filter(col("EMP_NR") isin (userId: _*))
     F9S_DSBD_RAW.select("EMP_NR").distinct.show
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
       .filter(col("EMP_NR") isin (userId: _*))
       .select(
         col("OFER_NR").as("offerNumber"),
@@ -219,6 +228,7 @@ case class F9S_DSBD_SUM(var spark: SparkSession, var pathSourceFrom: String, var
       .option("database", "f9s")
       .option("collection", "F9S_DSBD_SUM").mode("append"))
     F9S_DSBD_SUM.printSchema
+
     println("<------------Preplan Made------------->")
   }
 }

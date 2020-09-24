@@ -2,20 +2,26 @@ package f9s.core.query
 
 
 import com.mongodb.spark.MongoSpark
-import f9s.{hadoopConf, mongoConf}
+import f9s.{appConf, hadoopConf, mongoConf}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 
-case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String, var pathParquetSave: String, var pathJsonSave: String) {
+case class F9S_DSBD_WKDETAIL(var spark: SparkSession) {
+
+  val filePath = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
+
   def dsbd_wkdetail(): Unit = {
     println("////////////////////////////////DSBD WKDETAIL: JOB STARTED////////////////////////////////////////")
-    lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(pathSourceFrom + "/weektable.csv")
+    lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(filePath + "/weektable.csv")
       .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String")).withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000"))).drop("yyyymmdd")
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_DEAL")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
       .select("DEAL_DT", "DEAL_NR", "DEAL_CHNG_SEQ", "OFER_NR", "OFER_CHNG_SEQ")
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ") + 1).drop("OFER_CHNG_SEQ")
-    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath + "/FTR_OFER_LINE_ITEM")
+    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(filePath + "/FTR_OFER_LINE_ITEM")
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ"))
       .join(FTR_DEAL, Seq("OFER_NR", "offerChangeSeq_forjoin"), "left").drop("offerChangeSeq_forjoin")
       .join(weektable, Seq("BSE_YW"), "left")
@@ -48,7 +54,7 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
       .withColumn("aggLeftPrice", col("leftPrice"))
       .withColumn("maxOfferChangeSeq", lit(max("offerChangeSeq").over(Window.partitionBy("offerNumber", "baseYearWeek"))))
       .filter(col("maxOfferChangeSeq") === col("offerChangeSeq")).drop("maxOfferChangeSeq")
-      .filter(col("offerChangeSeq") === 0 or(col("offerChangeSeq") =!= 0 and col("dealQty") > 0))
+      .filter(col("offerChangeSeq") === 0 or (col("offerChangeSeq") =!= 0 and col("dealQty") > 0))
 
     val F9S_DSBD_WKDETAIL = src.groupBy("offerNumber",
       "baseYearWeek",
@@ -84,16 +90,18 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 
-  def append_dsbd_wkdetail(offerNumbers:Seq[String]): Unit = {
+  def append_dsbd_wkdetail(offerNumbers: Seq[String]): Unit = {
     println("////////////////////////////////DSBD WKDETAIL: JOB STARTED////////////////////////////////////////")
-    lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(pathSourceFrom + "/weektable.csv")
-      .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String")).withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000"))).drop("yyyymmdd")
-    lazy val FTR_DEAL = spark.read.parquet(hadoopConf.hadoopPath+"/FTR_DEAL")
-      .filter(col("OFER_NR") isin (offerNumbers:_*))
+    lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(filePath + "/weektable.csv")
+      .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String"))
+      .withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000")))
+      .drop("yyyymmdd")
+    lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
+      .filter(col("OFER_NR") isin (offerNumbers: _*))
       .select("DEAL_DT", "DEAL_NR", "DEAL_CHNG_SEQ", "OFER_NR", "OFER_CHNG_SEQ")
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ") + 1).drop("OFER_CHNG_SEQ")
-    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(hadoopConf.hadoopPath+"/FTR_OFER_LINE_ITEM")
-      .filter(col("OFER_NR") isin (offerNumbers:_*))
+    lazy val FTR_OFER_LINE_ITEM = spark.read.parquet(filePath + "/FTR_OFER_LINE_ITEM")
+      .filter(col("OFER_NR") isin (offerNumbers: _*))
       .withColumn("offerChangeSeq_forjoin", col("OFER_CHNG_SEQ"))
       .join(FTR_DEAL, Seq("OFER_NR", "offerChangeSeq_forjoin"), "left").drop("offerChangeSeq_forjoin")
       .join(weektable, Seq("BSE_YW"), "left")
@@ -126,7 +134,7 @@ case class F9S_DSBD_WKDETAIL(var spark: SparkSession, var pathSourceFrom: String
       .withColumn("aggLeftPrice", col("leftPrice"))
       .withColumn("maxOfferChangeSeq", lit(max("offerChangeSeq").over(Window.partitionBy("offerNumber", "baseYearWeek"))))
       .filter(col("maxOfferChangeSeq") === col("offerChangeSeq")).drop("maxOfferChangeSeq")
-      .filter(col("offerChangeSeq") === 0 or(col("offerChangeSeq") =!= 0 and col("dealQty") > 0))
+      .filter(col("offerChangeSeq") === 0 or (col("offerChangeSeq") =!= 0 and col("dealQty") > 0))
 
     val F9S_DSBD_WKDETAIL = src.groupBy("offerNumber",
       "baseYearWeek",

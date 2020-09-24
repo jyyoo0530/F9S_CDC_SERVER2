@@ -11,10 +11,12 @@ import scala.collection.mutable.ListBuffer
 
 case class CDC_SVC(var spark: SparkSession,
                    var iterIdx: Int,
-                   var folderOrigin: String,
-                   var folderStats: String,
-                   var folderJson: String,
                    var currentWk: String) {
+
+  val filePath: String = appConf().dataLake match {
+    case "file" => appConf().folderOrigin
+    case "hadoop" => hadoopConf.hadoopPath
+  }
   val list2chk = List(
     "FTR_OFER",
     "FTR_OFER_RTE",
@@ -27,7 +29,7 @@ case class CDC_SVC(var spark: SparkSession,
     "FTR_DEAL_RSLT"
   )
 
-  def chk_ID(): (ListBuffer[Int],ListBuffer[Int]) = {
+  def chk_ID(): (ListBuffer[Int], ListBuffer[Int]) = {
     ///////////////////////////CDC - DATA LAKE////////////////////////////////////
 
     var jobTarget = ListBuffer[Int]()
@@ -44,9 +46,8 @@ case class CDC_SVC(var spark: SparkSession,
       }
 
       // DATA LAKE Index
-
       for (i <- list2chk.indices) {
-        val ID = spark.read.parquet(hadoopConf.hadoopPath + list2chk(i))
+        val ID = spark.read.parquet(filePath + list2chk(i))
           .select("ID").groupBy().agg(max("ID").as("ID")).collect
           .mkString("").replace("[", "").replace("]", "").toInt
         idf9s += ID
@@ -65,7 +66,9 @@ case class CDC_SVC(var spark: SparkSession,
       {
         val list2chk2 = list2chk ::: List("MDM_PORT", "MDM_CRYR")
         for (i <- list2chk2.indices) {
-          spark.read.jdbc(jdbcConf.url, "ftr." + list2chk2(i), jdbcConf.prop).write.mode("overwrite").parquet(hadoopConf.hadoopPath + list2chk2(i))
+          spark.read.jdbc(jdbcConf.url, "ftr." + list2chk2(i), jdbcConf.prop)
+            .write.mode("overwrite")
+            .parquet(filePath + list2chk2(i))
         }
         val readResult = spark.emptyDataFrame
         return readResult
@@ -74,8 +77,7 @@ case class CDC_SVC(var spark: SparkSession,
       {
         if (targetIdx != 0) {
           val readResult = spark.read.jdbc(jdbcConf.url, "ftr." + jobTarget, jdbcConf.prop).filter(col("ID") > targetIdx)
-          //          spark.read.jdbc(url, "ftr." + jobTarget,prop).write.mode("overwrite").parquet(folderOrigin+jobTarget)
-          readResult.write.mode("append").parquet(hadoopConf.hadoopPath + jobTarget)
+          readResult.write.mode("append").parquet(filePath + jobTarget)
           println("Updated " + jobTarget + "with following numbers of rows:") //logger
           println(targetIdx) //logger
           return readResult

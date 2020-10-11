@@ -59,8 +59,8 @@ case class F9S_STATS_RAW(var spark: SparkSession) {
   def append_stats_raw(): Unit = {
     lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
     lazy val FTR_DEAL_CRYR = spark.read.parquet(filePath + "/FTR_DEAL_CRYR")
-    lazy val FTR_DEAL_RTE = spark.read.parquet(filePath  + "/FTR_DEAL_RTE")
-    lazy val FTR_DEAL_LINE_ITEM = spark.read.parquet(filePath  + "/FTR_DEAL_LINE_ITEM")
+    lazy val FTR_DEAL_RTE = spark.read.parquet(filePath + "/FTR_DEAL_RTE")
+    lazy val FTR_DEAL_LINE_ITEM = spark.read.parquet(filePath + "/FTR_DEAL_LINE_ITEM")
     lazy val MDM_CRYR = spark.read.parquet(filePath + "/MDM_CRYR").select("CRYR_CD", "CRYR_NM")
       .withColumn("carrierCode", col("CRYR_CD"))
       .withColumn("carrierName", col("CRYR_NM"))

@@ -93,6 +93,7 @@ case class F9S_MW_BIDASK(var spark: SparkSession) {
     F9S_MW_BIDASK.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
+
   def append_mw_bidask(): Unit = {
     println("////////////////////////////////MW BIDASK: JOB STARTED////////////////////////////////////////")
     val FTR_OFER_CRYR = spark.read.parquet(filePath + "/FTR_OFER_CRYR")

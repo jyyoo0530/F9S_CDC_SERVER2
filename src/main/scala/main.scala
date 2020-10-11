@@ -2,6 +2,7 @@ import java.util.{Calendar, GregorianCalendar, Properties}
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
+import scala.util.Random
 import org.apache.spark.sql.functions._
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
@@ -13,6 +14,7 @@ import org.apache.spark.sql.expressions.Window
 import org.mongodb.scala._
 import org.mongodb.scala.model.Filters
 import com.mongodb.client.result.DeleteResult
+import f9s.core.artemisbroker.ArtemisProducer
 
 import scala.collection.JavaConverters._
 import org.apache.spark.sql._
@@ -20,6 +22,9 @@ import f9s.core.query._
 import f9s.core.cdc._
 import f9s.{appConf, artemisConf, mongoConf, redisConf}
 import f9s.core.sparkConf
+import javax.jms.{Connection, Message, MessageConsumer, MessageProducer, Session, TextMessage, Topic}
+import javax.naming.InitialContext
+import org.apache.activemq.artemis.jms.client.{ActiveMQConnection, ActiveMQConnectionFactory, ActiveMQMessageProducer, ActiveMQSession, ActiveMQTopic}
 import org.reactivestreams.Subscription
 
 import scala.concurrent.Await
@@ -71,68 +76,33 @@ object main {
       ///// 1) check if there is any updated data in target DB
       i match {
         case 0 => ///// Code Playground --> set appConf.jobIdx => 0 ////
+          val listTopic = Array("/topic/test", "/topic/test1", "/topic/test2", "/topic/test3", "/topic/test4")
+          val listMessage = Array("Apple", "Banana", "Melon", "Grapes", "Pineapple", "Watermelon")
+          var pickedTopic = listTopic(0 + scala.util.Random.nextInt(4 + 1))
+          var pickedMessage = listMessage(0 + scala.util.Random.nextInt(5 + 1))
+          ArtemisProducer.sendMessage(pickedTopic, pickedMessage)
+        //          val topic: ActiveMQTopic =new ActiveMQTopic("topic/exampleTopic")
+        //          val connectionFactory: ActiveMQConnectionFactory = new ActiveMQConnectionFactory("tcp://data.freight9.com:61616")
+        //            .setUser("f9s")
+        //            .setPassword("12345678")
+        //          val connection: Connection = connectionFactory.createConnection()
+        //          connection.start()
+        //          val session: Session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+        //          val producer: MessageProducer =session.createProducer(topic)
+        //          val messageConsumer1: MessageConsumer = session.createConsumer(topic);
+        //          val messageConsumer2: MessageConsumer = session.createConsumer(topic);
+        //          val message: TextMessage = session.createTextMessage("This is TESTTESTTESTTEST message")
+        //
+        //          System.out.println("Sent message:" + message.getText());
+        //          producer.send(message)
+        //          connection.start()
+        //
+        //          var messageRcvd: Message =messageConsumer1.receive();
+        //          System.out.println("Consumer 1 Received message: " + messageRcvd)
+        //          messageRcvd =messageConsumer2.receive()
+        //          System.out.println("Consumer 2 Received message: " + messageRcvd)
 
-          CDC_SVC(spark, i, currentWk).update_Origin(list2chk(0), 0)
-          //////////////////////////////////F9STATS UPDATE START////////////////////////////////
-          F9S_DSBD_RAW(spark).dsbd_raw()
-          F9S_DSBD_SUM(spark, currentWk).dsbd_sum()
 
-          artemisConf
-//          val (jobTarget, idf9s) = CDC_SVC(spark, i, currentWk).chk_ID()
-//          if (jobTarget.sum != 0) ///// 2) ignore if there is no updates
-//            {
-//              val FTR_OFER = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(0), idf9s(0))
-//              val FTR_OFER_RTE = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(1), idf9s(1))
-//              val FTR_OFER_LINE_ITEM = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(2), idf9s(2))
-//              val FTR_OFER_CRYR = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(3), idf9s(3))
-//              val FTR_DEAL = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(4), idf9s(4))
-//              val FTR_DEAL_LINE_ITEM = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(5), idf9s(5))
-//              val FTR_DEAL_CRYR = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(6), idf9s(6))
-//              val FTR_DEAL_RTE = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(7), idf9s(7))
-//              val FTR_DEAL_RSLT = CDC_SVC(spark, i, currentWk).update_Origin(list2chk(8), idf9s(8))
-//
-//              //// 4) appending F9STATS start//
-//              val offerNumbers: List[String] =
-//                FTR_OFER.select("OFER_NR")
-//                  .distinct.rdd.map(r => r(0).asInstanceOf[String].split("\\|").map(_.toString).distinct).collect().flatten.toList
-//              print(offerNumbers)
-//              val userId: List[String] =
-//                FTR_OFER.select("EMP_NR")
-//                  .distinct.rdd.map(r => r(0).asInstanceOf[String].split("\\|").map(_.toString).distinct).collect().flatten.toList
-//              print(userId)
-//
-//              /////////// DSBD Update Block Start ///////
-//              F9S_DSBD_RAW(spark).append_dsbd_raw(FTR_OFER, FTR_OFER_CRYR, FTR_OFER_RTE, FTR_OFER_LINE_ITEM)
-//
-//              def deleteMongoSeats(collectionName: String, deleteFrom: String, deleteQuery: List[String]): Unit = {
-//                val collection: MongoCollection[Document] = mongoConf.database.getCollection(collectionName)
-//                val observable: Observable[DeleteResult] = collection.deleteMany(Filters.in(deleteFrom, deleteQuery: _*))
-//                val observer: Observer[DeleteResult] = new Observer[DeleteResult] {
-//                  override def onNext(result: DeleteResult): Unit = println("Delete")
-//
-//                  override def onError(e: Throwable): Unit = println("Failed")
-//
-//                  override def onComplete(): Unit = println("Completed")
-//                }
-//                observable.subscribe(observer)
-//                System.out.println(Await.result(observable.toFuture, Duration(10, TimeUnit.SECONDS)))
-//              }
-//
-//              deleteMongoSeats("F9S_DSBD_SUM", "userId", userId)
-//              deleteMongoSeats("F9S_DSBD_WKDETAIL", "offerNumber", offerNumbers)
-//              deleteMongoSeats("F9S_DSBD_EVNTLOG", "offerNumber", offerNumbers)
-//              deleteMongoSeats("F9S_DSBD_RTELIST", "userId", userId)
-//              deleteMongoSeats("F9S_DSBD_WKLIST", "userId", userId)
-//
-//              F9S_DSBD_SUM(spark, currentWk).append_dsbd_sum(userId)
-//              F9S_DSBD_WKDETAIL(spark).append_dsbd_wkdetail(offerNumbers)
-//              F9S_DSBD_EVNTLOG(spark, currentWk).append_dsbd_evntlog(offerNumbers)
-//              F9S_DSBD_RTELIST(spark).append_dsbd_rtelist(userId)
-//              F9S_DSBD_WKLIST(spark).append_dsbd_wklist(userId)
-//              /////////// DSBD Update Block End ////////////
-//
-//              println("/////////////////////Job " + i.toString + " Finished//////////////////////")
-//            }
         case 1 => ///// Cold Run -> get all data and update all
           CDC_SVC(spark, i, currentWk).update_Origin(list2chk(0), 0)
           //////////////////////////////////F9STATS UPDATE START////////////////////////////////
@@ -205,7 +175,6 @@ object main {
               F9S_DSBD_RTELIST(spark).append_dsbd_rtelist(userId)
               F9S_DSBD_WKLIST(spark).append_dsbd_wklist(userId)
               /////////// DSBD Update Block End ////////////
-
 
               println("/////////////////////Job " + i.toString + " Finished//////////////////////")
               i += 1

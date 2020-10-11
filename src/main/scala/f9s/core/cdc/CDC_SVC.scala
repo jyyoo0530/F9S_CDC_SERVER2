@@ -6,6 +6,7 @@ import f9s._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{col, max}
 import org.apache.spark.sql.types.{StructField, StructType}
+import scala.util.{Try, Success, Failure}
 
 import scala.collection.mutable.ListBuffer
 
@@ -39,18 +40,27 @@ case class CDC_SVC(var spark: SparkSession,
       // DB Index
       val idTrade = new ListBuffer[Int]()
       for (i <- list2chk.indices) {
-        val ID = spark.read.jdbc(jdbcConf.url, "ftr." + list2chk(i), jdbcConf.prop)
-          .select("ID").groupBy().agg(max("ID").as("ID")).collect
-          .mkString("").replace("[", "").replace("]", "").toInt
-        idTrade += ID
+        try {
+          val ID = spark.read.jdbc(jdbcConf.url, "ftr." + list2chk(i), jdbcConf.prop)
+            .select("ID").groupBy().agg(max("ID").as("ID")).collect
+            .mkString("").replace("[", "").replace("]", "").toInt
+          idTrade += ID
+        } catch {
+          case e: Exception => println("!!!!!!!!Unknown Error Cases!!!!!!!!")
+        }
       }
 
       // DATA LAKE Index
       for (i <- list2chk.indices) {
-        val ID = spark.read.parquet(filePath + list2chk(i))
-          .select("ID").groupBy().agg(max("ID").as("ID")).collect
-          .mkString("").replace("[", "").replace("]", "").toInt
-        idf9s += ID
+        try {
+          val ID = spark.read.parquet(filePath + list2chk(i))
+            .select("ID").groupBy().agg(max("ID").as("ID")).collect
+            .mkString("").replace("[", "").replace("]", "").toInt
+          idf9s += ID
+        }
+        catch {
+          case e: Exception => println("!!!!!!!!Unknown Error Cases!!!!!!!!")
+        }
       }
       // job Target ------ choose right runMode according to cold run or not
       jobTarget = (idTrade, idf9s).zipped.map((x, y) => x - y)

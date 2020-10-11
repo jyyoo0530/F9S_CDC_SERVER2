@@ -16,8 +16,8 @@ case class F9S_IDX_LST(var spark: SparkSession) {
   def idx_lst(): Unit = {
     println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
     val F9S_MI_SUM = spark.read.parquet(filePath + "/F9S_MI_SUM")
-//    F9S_MI_SUM.printSchema()
-//    F9S_MI_SUM.show(10)
+    //    F9S_MI_SUM.printSchema()
+    //    F9S_MI_SUM.show(10)
     val F9S_MW_WKDETAIL = spark.read.parquet(filePath + "/F9S_MW_WKDETAIL").select("interval")
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
@@ -42,20 +42,20 @@ case class F9S_IDX_LST(var spark: SparkSession) {
 
     val F9S_IDX_LST =
       F9S_MI_SUM
-      .join(intervalDf, Seq("interval"), "left")
-      .sort(col("intervalSeq").asc).distinct
-      .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
-      .agg(collect_list(struct("intervalSeq", "interval")).as("intervalItem"))
-      .union(
-        F9S_MW_WKDETAIL.join(intervalDf, Seq("interval"), "left")
-          .distinct
-          .withColumn("idxSubject", lit("marketWatch"))
-          .withColumn("idxCategory", lit("weekDetail"))
-          .withColumn("idxCd", lit("MWWD"))
-          .withColumn("idxNm", lit("market watch weekdetail frequencies"))
-          .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
-          .agg(collect_set(struct("intervalSeq", "interval")).as("intervalItem"))
-      )
+        .join(intervalDf, Seq("interval"), "left")
+        .sort(col("intervalSeq").asc).distinct
+        .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
+        .agg(collect_list(struct("intervalSeq", "interval")).as("intervalItem"))
+        .union(
+          F9S_MW_WKDETAIL.join(intervalDf, Seq("interval"), "left")
+            .distinct
+            .withColumn("idxSubject", lit("marketWatch"))
+            .withColumn("idxCategory", lit("weekDetail"))
+            .withColumn("idxCd", lit("MWWD"))
+            .withColumn("idxNm", lit("market watch weekdetail frequencies"))
+            .groupBy("idxSubject", "idxCategory", "idxCd", "idxNm")
+            .agg(collect_set(struct("intervalSeq", "interval")).as("intervalItem"))
+        )
 
 
     //    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_IDX_LST")

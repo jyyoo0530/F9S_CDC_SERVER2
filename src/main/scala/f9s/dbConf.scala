@@ -48,7 +48,7 @@ object artemisConf {
   // create Session
   val session: Session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
 
-  def runArtemisProducer(topic:String, msg: String): Unit = {
+  def runArtemisProducer(topic: String, msg: String): Unit = {
 
     // create Destination ( Topic or Queue )
     val destination: Destination = session.createTopic(topic)

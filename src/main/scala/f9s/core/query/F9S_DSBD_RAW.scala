@@ -8,7 +8,7 @@ import org.apache.spark.sql.functions._
 
 
 case class F9S_DSBD_RAW(var spark: SparkSession) {
-  val filePath =  appConf().dataLake match {
+  val filePath = appConf().dataLake match {
     case "file" => appConf().folderOrigin
     case "hadoop" => hadoopConf.hadoopPath
   }

@@ -53,15 +53,15 @@ case class F9S_DSBD_WKLIST(var spark: SparkSession) {
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 
-  def append_dsbd_wklist(userId:Seq[String]): Unit = {
+  def append_dsbd_wklist(userId: Seq[String]): Unit = {
     println("////////////////////////////////DSBD WKLIST: JOB STARTED////////////////////////////////////////")
     lazy val FTR_OFER: DataFrame = spark.read.parquet(filePath + "/FTR_OFER")
-      .filter(col("EMP_NR") isin (userId:_*))
+      .filter(col("EMP_NR") isin (userId: _*))
     lazy val offerList = FTR_OFER.select("OFER_NR").rdd.map(r => r(0).asInstanceOf[String].split("\\|").map(_.toString).distinct).collect().flatten.toSeq
     lazy val FTR_OFER_RTE: DataFrame = spark.read.parquet(filePath + "/FTR_OFER_RTE")
-      .filter(col("OFER_NR") isin (offerList:_*))
+      .filter(col("OFER_NR") isin (offerList: _*))
     lazy val FTR_OFER_LINE_ITEM: DataFrame = spark.read.parquet(filePath + "/FTR_OFER_LINE_ITEM")
-      .filter(col("OFER_NR") isin (offerList:_*))
+      .filter(col("OFER_NR") isin (offerList: _*))
 
     lazy val polRte: DataFrame = FTR_OFER_RTE.filter(col("TRDE_LOC_TP_CD") === "02").select("TRDE_LOC_CD", "OFER_CHNG_SEQ", "OFER_NR", "OFER_REG_SEQ").withColumn("polCode", col("TRDE_LOC_CD")).drop("TRDE_LOC_CD")
     lazy val podRte: DataFrame = FTR_OFER_RTE.filter(col("TRDE_LOC_TP_CD") === "03").select("TRDE_LOC_CD", "OFER_CHNG_SEQ", "OFER_NR", "OFER_REG_SEQ").withColumn("podCode", col("TRDE_LOC_CD")).drop("TRDE_LOC_CD")

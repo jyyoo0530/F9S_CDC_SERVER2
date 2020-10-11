@@ -10,7 +10,7 @@ import org.apache.spark.sql.types.{DateType, StructField, StructType}
 
 
 case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var currentWk: String) {
-  val filePath =  appConf().dataLake match {
+  val filePath = appConf().dataLake match {
     case "file" => appConf().folderOrigin
     case "hadoop" => hadoopConf.hadoopPath
   }
@@ -310,12 +310,12 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var currentWk: String) {
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 
-  def append_dsbd_evntlog(offerNumbers:Seq[String]): Unit = {
+  def append_dsbd_evntlog(offerNumbers: Seq[String]): Unit = {
     println("////////////////////////////////DSBD EVENTLOG: JOB STARTED////////////////////////////////////////")
     lazy val FTR_OFER = spark.read.parquet(filePath + "/FTR_OFER")
-      .filter(col("OFER_NR") isin (offerNumbers:_*))
+      .filter(col("OFER_NR") isin (offerNumbers: _*))
     lazy val FTR_DEAL = spark.read.parquet(filePath + "/FTR_DEAL")
-      .filter(col("OFER_NR") isin (offerNumbers:_*))
+      .filter(col("OFER_NR") isin (offerNumbers: _*))
     lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(filePath + "/weektable.csv")
       .select(col("BSE_YW").cast("String"), col("yyyymmdd").cast("String")).withColumn("timestamp", concat(col("yyyymmdd"), lit("010000000000"))).drop("yyyymmdd")
 

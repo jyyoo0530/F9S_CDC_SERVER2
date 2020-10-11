@@ -9,7 +9,7 @@ import org.apache.spark.sql.functions._
 
 case class F9S_DSBD_SUM(var spark: SparkSession, var currentWk: String) {
 
-  val filePath = appConf().dataLake match {
+  val filePath: String = appConf().dataLake match {
     case "file" => appConf().folderOrigin
     case "hadoop" => hadoopConf.hadoopPath
   }
@@ -88,9 +88,13 @@ case class F9S_DSBD_SUM(var spark: SparkSession, var currentWk: String) {
         min("baseYearWeek").as("minBaseYearWeek"),
         sum("leftAmt").as("priceValue"))
       .withColumn("offerStatus",
-        when(((col("maxBaseYearWeek") > currentWk and col("minBaseYearWeek") < currentWk) and (col("allYn") === "0") and (col("priceValue") > 0)) or
+        when((
+          (col("maxBaseYearWeek") > currentWk and col("minBaseYearWeek") < currentWk) and
+            (col("allYn") === "0") and
+            (col("priceValue") > 0))
+          or
           (col("minBaseYearWeek") > currentWk and (col("priceValue") > 0))
-          , lit("1")).otherwise(lit("0"))).drop("maxBaseYearWeek", "minBaseYearWeek").drop("priceValue")
+          , lit("0")).otherwise(lit("1"))).drop("maxBaseYearWeek", "minBaseYearWeek").drop("priceValue")
 
     val F9S_DSBD_SUM = srcLineItem.join(srcRte, Seq("offerNumber", "offerChangeSeq"), "left")
       .groupBy("userId", "offerTypeCode")
@@ -116,7 +120,7 @@ case class F9S_DSBD_SUM(var spark: SparkSession, var currentWk: String) {
     F9S_DSBD_SUM.printSchema
 
     val topic_F9S_DSBD_SUM: Dataset[Row] = F9S_DSBD_SUM.select("userId", "offerTypeCode")
-        .distinct
+      .distinct
     for (i <- topic_F9S_DSBD_SUM) {
       println(i.mkString("."))
     }

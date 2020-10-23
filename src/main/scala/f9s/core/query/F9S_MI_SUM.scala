@@ -3,7 +3,7 @@ package f9s.core.query
 import com.mongodb.spark.MongoSpark
 import f9s.{appConf, hadoopConf, mongoConf}
 import org.apache.parquet.format.IntType
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StringType}
@@ -15,16 +15,18 @@ case class F9S_MI_SUM(var spark: SparkSession) {
     case "hadoop" => hadoopConf.hadoopPath
   }
 
-  def mi_sum(): Unit = {
+  def mi_sum(): DataFrame = {
     println("////////////////////////////////MI SUM: JOB STARTED////////////////////////////////////////")
+    ///// DATA LOAD /////
     val SCFI = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load(filePath + "/SCFI.csv")
-
     lazy val weektable = spark.read.format("csv").option("inferSchema", "true").option("header", "true").load(filePath + "/weektable.csv")
       .select(col("week2").cast(StringType), col("yyyymmdd").cast(StringType))
       .withColumn("week", col("week2"))
       .withColumn("intervalTimestamp", concat(col("yyyymmdd"), lit("010000000000")))
       .drop("yyyymmdd", "week2")
 
+
+    ///// SQL /////
     val step1 = SCFI.drop("share", "qtyUnit", "currency")
       .withColumn("year", concat(year(col("date").cast(StringType)), lit("1220010000000000")))
       .withColumn("month", concat((year(col("date")) * 100 + month(col("date"))).cast(StringType), lit("20010000000000")))
@@ -61,12 +63,8 @@ case class F9S_MI_SUM(var spark: SparkSession) {
       .withColumn("volume", lit(0).cast(DoubleType))
       .drop("month").distinct
 
-    apnd1.printSchema()
-    apnd2.printSchema()
-    apnd3.printSchema()
-
     val finalSrc = apnd1.union(apnd2).union(apnd3)
-    finalSrc.printSchema()
+
     val F9S_MI_SUM = finalSrc.groupBy("idxSubject", "idxCategory", "idxCd", "idxNm", "interval").agg(collect_list(struct(
       col("xAxis").cast(StringType).as("xAxis"),
       col("intervalTimestamp").cast(StringType).as("intervalTimestamp"),
@@ -76,15 +74,12 @@ case class F9S_MI_SUM(var spark: SparkSession) {
       col("volume").cast(DoubleType).as("volume")
     )).as("Cell"))
 
-    //    F9S_MI_SUM.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_MI_SUM")
 
-    F9S_MI_SUM.write.mode("overwrite").parquet(filePath + "/F9S_MI_SUM")
-    MongoSpark.save(F9S_MI_SUM.write
-      .option("uri", mongoConf.sparkMongoUri)
-      .option("database", "f9s")
-      .option("collection", "F9S_MI_SUM").mode("overwrite"))
+    ///// DATALAKE -> 2nd Tier /////
     F9S_MI_SUM.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
+
+    F9S_MI_SUM
   }
 
   def append_mi_sum(): Unit = {

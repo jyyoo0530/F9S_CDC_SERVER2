@@ -1,12 +1,9 @@
-package f9s.core.query
+package f9s.core.query._garbage
 
 import com.mongodb.spark.MongoSpark
-import com.mongodb.spark._
-import com.mongodb.spark.config._
 import f9s.{appConf, hadoopConf, mongoConf}
-import org.bson.Document
-import org.apache.spark.sql.{Row, SparkSession}
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions.{col, collect_list, struct}
 
 case class F9S_DSBD_RTELIST(var spark: SparkSession) {
 

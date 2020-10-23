@@ -17,5 +17,10 @@ libraryDependencies ++= Seq(
   "org.apache.activemq" % "artemis-jms-client" % "2.14.0",
   "org.apache.activemq" % "artemis-commons" % "2.14.0",
   "org.apache.activemq" % "artemis-core-client" % "2.14.0",
-  "org.apache.activemq" % "artemis-stomp-protocol" % "2.14.0"
+  "org.apache.activemq" % "artemis-stomp-protocol" % "2.14.0",
+  "com.nvidia" %% "rapids-4-spark" % "0.2.0",
+  "ai.rapids" % "cudf" % "0.15",
+  "commons-beanutils" % "commons-beanutils" % "1.9.4",
+  "io.delta" %% "delta-core" % "0.7.0"
+
 )

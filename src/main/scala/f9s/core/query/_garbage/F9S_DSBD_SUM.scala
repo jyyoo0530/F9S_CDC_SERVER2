@@ -1,11 +1,10 @@
-package f9s.core.query
+package f9s.core.query._garbage
 
 import com.mongodb.spark.MongoSpark
-import com.mongodb.spark.config.WriteConfig
 import f9s.{appConf, hadoopConf, mongoConf}
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 case class F9S_DSBD_SUM(var spark: SparkSession, var currentWk: String) {
 

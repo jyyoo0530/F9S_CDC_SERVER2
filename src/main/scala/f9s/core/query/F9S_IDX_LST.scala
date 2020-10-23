@@ -2,7 +2,7 @@ package f9s.core.query
 
 import com.mongodb.spark.MongoSpark
 import f9s.{appConf, hadoopConf, mongoConf}
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
@@ -13,12 +13,12 @@ case class F9S_IDX_LST(var spark: SparkSession) {
     case "hadoop" => hadoopConf.hadoopPath
   }
 
-  def idx_lst(): Unit = {
+  def idx_lst(f9sMiSum:DataFrame, f9sMwWkDetail:DataFrame): DataFrame = {
     println("////////////////////////////////IDX LST: JOB STARTED////////////////////////////////////////")
-    val F9S_MI_SUM = spark.read.parquet(filePath + "/F9S_MI_SUM")
-    //    F9S_MI_SUM.printSchema()
-    //    F9S_MI_SUM.show(10)
-    val F9S_MW_WKDETAIL = spark.read.parquet(filePath + "/F9S_MW_WKDETAIL").select("interval")
+
+    ///// DATA LOAD /////
+    val F9S_MI_SUM = f9sMiSum
+    val F9S_MW_WKDETAIL = f9sMwWkDetail
     val schema = StructType(List(
       StructField("intervalSeq", IntegerType, nullable = false),
       StructField("interval", StringType, nullable = false)
@@ -40,6 +40,7 @@ case class F9S_IDX_LST(var spark: SparkSession) {
     ))
     val intervalDf = spark.createDataFrame(rdd, schema)
 
+    ///// SQL /////
     val F9S_IDX_LST =
       F9S_MI_SUM
         .join(intervalDf, Seq("interval"), "left")
@@ -58,14 +59,12 @@ case class F9S_IDX_LST(var spark: SparkSession) {
         )
 
 
-    //    F9S_IDX_LST.repartition(1).write.mode("append").json(pathJsonSave + "/F9S_IDX_LST")
-    //        F9S_IDX_LST.write.mode("overwrite").parquet(pathParquetSave+"/F9S_IDX_LST")
-    MongoSpark.save(F9S_IDX_LST.write
-      .option("uri", mongoConf.sparkMongoUri)
-      .option("database", "f9s")
-      .option("collection", "F9S_IDX_LST").mode("overwrite"))
+    ///// DATALAKE -> 2nd Tier /////
+
     F9S_IDX_LST.printSchema
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
+
+    F9S_IDX_LST
   }
 
   def append_idx_lst(): Unit = {

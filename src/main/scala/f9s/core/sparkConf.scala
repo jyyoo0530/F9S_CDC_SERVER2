@@ -30,4 +30,18 @@ case class sparkConf() {
     .set("spark.mongodb.output.uri", "mongodb://data.freight9.com:27017")
     .set("spark.mongodb.input.database", "f9s")
     .set("spark.mongodb.output.database", "f9s")
+
+    ////////Delta Lake/////
+    .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .set("spark.sql.catalog_spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+
+  ////// GPU SETTING ////////
+//      .set("spark.rapids.sql.incompatibleOps.enabled", "true")
+//      .set("spark.executor.resource.gpu.amount", "1")
+//      .set("spark.rapids.sql.concurrentGpuTasks", "2")
+//      .set("spark.sql.files.maxPartitionBytes", "512m")
+//      .set("spark.kryo.registrator", "com.nvidia.spark.rapids.GpuKryoRegistrator")
+//      .set("spark.rapids.sql.explain", "true")
+//      .set("spark.plugins", "com.nvidia.spark.SQLPlugin")
+//      .set("spark.task.resource.gpu.amount", "0.125")  ////don't use yet !!
 }

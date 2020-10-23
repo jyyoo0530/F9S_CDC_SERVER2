@@ -1,6 +1,7 @@
 package f9s.core.artemisbroker
 
-import javax.jms.{Connection, ConnectionFactory, Message, MessageConsumer, MessageProducer, Session, TextMessage, Topic}
+import com.google.gson.Gson
+import javax.jms.{Connection, ConnectionFactory, DeliveryMode, Message, MessageConsumer, MessageProducer, Session, TextMessage, Topic}
 import javax.naming.InitialContext
 import org.apache.activemq.artemis.core.protocol.stomp.StompConnection
 import org.apache.activemq.artemis.jms.client.{ActiveMQConnectionFactory, ActiveMQQueue, ActiveMQTopic}
@@ -16,10 +17,13 @@ object ArtemisProducer {
   def sendMessage(topicAddress: String, messageContent: String): Unit = {
     val topic: ActiveMQTopic = new ActiveMQTopic(topicAddress)
     val producer: MessageProducer = session.createProducer(topic)
+    producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT)
+
     val message: TextMessage = session.createTextMessage(messageContent)
 
     System.out.println("Sent message: " + message.getText)
     producer.send(message)
+
   }
 
 

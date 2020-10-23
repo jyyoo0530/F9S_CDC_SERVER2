@@ -1,10 +1,9 @@
-package f9s.core.query
-
+package f9s.core.query._garbage
 
 import com.mongodb.spark.MongoSpark
 import f9s.{appConf, hadoopConf, mongoConf}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 case class F9S_DSBD_WKLIST(var spark: SparkSession) {
 
@@ -97,4 +96,3 @@ case class F9S_DSBD_WKLIST(var spark: SparkSession) {
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 }
-

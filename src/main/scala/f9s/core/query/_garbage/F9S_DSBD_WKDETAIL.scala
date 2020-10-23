@@ -1,9 +1,8 @@
-package f9s.core.query
-
+package f9s.core.query._garbage
 
 import com.mongodb.spark.MongoSpark
 import f9s.{appConf, hadoopConf, mongoConf}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 

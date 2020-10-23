@@ -1,13 +1,10 @@
-package f9s.core.query
+package f9s.core.query._garbage
 
 import com.mongodb.spark.MongoSpark
 import f9s.{appConf, hadoopConf, mongoConf}
-import org.apache.avro.generic.GenericData.StringType
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{DateType, StructField, StructType}
-
 
 case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var currentWk: String) {
   val filePath = appConf().dataLake match {
@@ -606,4 +603,3 @@ case class F9S_DSBD_EVNTLOG(var spark: SparkSession, var currentWk: String) {
     println("/////////////////////////////JOB FINISHED//////////////////////////////")
   }
 }
-

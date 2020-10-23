@@ -1,11 +1,8 @@
-package f9s.core.query
-
+package f9s.core.query._garbage
 
 import f9s.{appConf, hadoopConf}
+import org.apache.spark.sql.functions.{col, collect_set, countDistinct, struct}
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions._
-
 
 case class F9S_DSBD_RAW(var spark: SparkSession) {
   val filePath = appConf().dataLake match {
